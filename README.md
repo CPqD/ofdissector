@@ -6,8 +6,8 @@ Wireshark dissectors for OpenFlow 1.1+
 Build/Install
 =============
 
-Depedencies
------------
+Dependencies
+------------
  * glib >= 2.0
  * Wireshark >= 1.4.0
  * SCons >= 2.0
@@ -35,21 +35,28 @@ build should work as it does on any other posix system.
 Install
 -------
 1) Set the Wireshark include directory. In Linux, this should be:
-   $ export WIRESHARK=/usr/include/wireshark
+
+    $ export WIRESHARK=/usr/include/wireshark
+    
 2) Run:
-   $ cd src
-   $ scons install
+
+    $ cd src
+    $ scons install
+    
 3) Run Wireshark
 
 Test
 ----
 1) Run:
-   $ cd test
-   $ make
-   $ ./server (will stay listening forever)
+
+    $ cd test
+    $ make
+    $ ./server (will stay listening forever)
+    
 2) Go to Wireshark and start capture on lo
 3) Run:
-   $ ./client
+
+    $ ./client
 
 Several messages should appear. You can customize them in main function in 
 client.c, and then repeat the steps above to see the results.

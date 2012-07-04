@@ -117,12 +117,12 @@ int main(int argc, char *argv[])
     PADDING(msg, 2);
     PACK(msg, "ofp_flow_mod.match.type", OFPMT_OXM, UINT16);
     PACK(msg, "ofp_flow_mod.match.length", 20, UINT16);
-    PACK(msg, "ofp_flow_mod.match.oxm_fields[0].header", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IN_PORT, TRUE, 64), UINT32);
-    PACK(msg, "ofp_flow_mod.match.oxm_fields[0].value", 789, UINT32);
-    PACK(msg, "ofp_flow_mod.match.oxm_fields[0].mask", 0x12345678, UINT32);
-    PACK(msg, "ofp_flow_mod.match.oxm_fields[1].header", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IPV4_DST, TRUE, 64), UINT32);
-    PACK(msg, "ofp_flow_mod.match.oxm_fields[1].value", 0xc0a80001, UINT32);
-    PACK(msg, "ofp_flow_mod.match.oxm_fields[1].mask", 0xFFFFFF00, UINT32);
+        PACK(msg, "ofp_flow_mod.match.oxm_fields[0].header", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IN_PORT, TRUE, 64), UINT32);
+        PACK(msg, "ofp_flow_mod.match.oxm_fields[0].value", 789, UINT32);
+        PACK(msg, "ofp_flow_mod.match.oxm_fields[0].mask", 0x12345678, UINT32);
+        PACK(msg, "ofp_flow_mod.match.oxm_fields[1].header", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IPV4_DST, TRUE, 64), UINT32);
+        PACK(msg, "ofp_flow_mod.match.oxm_fields[1].value", 0xc0a80001, UINT32);
+        PACK(msg, "ofp_flow_mod.match.oxm_fields[1].mask", 0xFFFFFF00, UINT32);
     PADDING(msg, OFP_MATCH_OXM_PADDING(20));
     PACK(msg, "ofp_flow_mod.instructions[0].type", OFPIT_APPLY_ACTIONS, UINT16);
     PACK(msg, "ofp_flow_mod.instructions[0].len", 40, UINT16);

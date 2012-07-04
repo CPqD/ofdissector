@@ -1,0 +1,7 @@
+# Copyright (c) 2010-2011 The Board of Trustees of The Leland Stanford Junior University
+
+Import('env')
+
+obj = env.SharedObject('openflow-100.cpp')
+
+Return('obj')

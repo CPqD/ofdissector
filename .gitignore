@@ -1,0 +1,6 @@
+.sconsign.dblite
+
+*.so
+*.os
+test/client
+test/server

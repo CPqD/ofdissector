@@ -1,0 +1,111 @@
+# Copyright (c) 2012 Barnstormer Softworks Ltd.
+
+import os
+import os.path
+import platform
+import zipfile
+import tarfile
+import sys
+
+env = Environment()
+
+PLAT_LIBS = []
+INSTALLPATH = ""
+
+def get_version():
+  v = "Unknown"
+  ver_hpp = os.path.normpath("%s/openflow-common.hpp" % os.getcwd())
+  f = open(ver_hpp, "rb")
+  for line in f:
+    if line.startswith("#define VERSION"):
+      v = line.split()[2].strip('"')
+
+  return v
+
+def error (msg):
+  print "### ERROR: %s" % (msg)
+
+if os.name == 'posix':
+  if not os.environ.has_key('WIRESHARK'):
+    error("You need to set the WIRESHARK environment variable to the location of your wireshark include directory.")
+    error("(such that epan/packet.h is a valid include path)")
+    sys.exit()
+  env.AppendUnique(
+    CPPPATH = [os.getcwd(),
+               os.environ['WIRESHARK']],
+    LIBPATH = ['/usr/lib',
+               '/usr/local/lib'])
+
+  INSTALLPATH = os.path.expanduser('~/.wireshark/plugins/')
+
+  if os.uname()[0] == "Darwin":
+    PLAT_LIBS.append('wireshark')
+    PLAT_LIBS.append('glib-2.0')
+    env.Replace(SHLIBSUFFIX = ".so")
+
+  env.ParseConfig('pkg-config --cflags --libs glib-2.0')
+
+  env['SHLIBPREFIX'] = ""
+  env['PKG_NAME'] = "plugin-%s-%s-%s" % (get_version(), os.uname()[0].lower(), platform.architecture()[0])
+
+  def package_posix(target, source, env):
+    src = source[0].path
+    tpath = "%s.tgz" % (target[0].path)
+    t = tarfile.open(tpath, "w:gz")
+    t.add(src)
+    t.close()
+
+  bld_pkg = Builder(action=package_posix, src_suffix='.so')
+  env.AppendUnique(BUILDERS = {"Package" : bld_pkg})
+
+elif os.name == 'nt':
+  env.AppendUnique(
+    CPPPATH = [os.getcwd(),
+               os.environ['WIRESHARK'],
+               'C:\wireshark-win32-libs\gtk2\lib\glib-2.0\include',
+               'C:\wireshark-win32-libs\gtk2\include\glib-2.0'],
+    LIBPATH = ['C:\wireshark-win32-libs\gtk2\lib',
+               '%s/epan/' % (os.environ['WIRESHARK'])])
+
+  PLAT_LIBS.append('glib-2.0')
+  PLAT_LIBS.append('libwireshark')
+
+  env['SHLIBPREFIX'] = ""
+  env['PKG_NAME'] = "plugin-%s-win32-%s" % (get_version(), platform.architecture()[0])
+
+  def package_win32(target, source, env):
+    tpath = "%s.zip" % (target[0].path)
+    t = zipfile.ZipFile(tpath, "w", zipfile.ZIP_DEFLATED)
+    t.write(source[0].path)
+    t.close()
+
+  bld_pkg = Builder(action=package_win32, src_suffix='.dll')
+  env.AppendUnique(BUILDERS = {"Package" : bld_pkg})
+  
+
+bld_doc = Builder(action='doxygen $SOURCE')
+env.AppendUnique(BUILDERS = {"Documentation" : bld_doc})
+
+objects = []
+objects.append(SConscript(['of10/Sconscript'], exports='env'))
+objects.append(SConscript(['of11/Sconscript'], exports='env'))
+objects.append(SConscript(['of12/Sconscript'], exports='env'))
+objects.append(SConscript(['util/Sconscript'], exports='env'))
+
+src_files = Split("""
+  openflow-common.cpp
+  plugin.cpp
+  """)
+
+target_plugin = env.SharedLibrary('openflow', source = [src_files, objects], LIBS=PLAT_LIBS)
+
+target_package = env.Package(env['PKG_NAME'], source = target_plugin)
+env.Alias('package', target_package)
+
+target_install = env.Install(os.path.expanduser('~/.wireshark/plugins/'), target_plugin)
+env.Alias('install', target_install)
+
+target_doc = env.Documentation(None, source = ['../conf/plugin.doxy'])
+env.Alias('doc', target_doc)
+
+Default(target_plugin)

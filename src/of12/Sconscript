@@ -1,0 +1,7 @@
+# Copyright (c) 2012 Barnstormer Softworks Ltd.
+
+Import('env')
+
+obj = env.SharedObject('openflow-120.cpp')
+
+Return('obj')

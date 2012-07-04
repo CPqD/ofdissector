@@ -1,7 +1,7 @@
 ofdissector
 ===========
 
-Wireshark dissectors for OpenFlow 1.1+
+Wireshark dissectors for OpenFlow 1.1 and 1.2
 
 Build/Install
 =============

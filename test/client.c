@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
         PACK(msg, "ofp_flow_mod.match.oxm_fields[1].mask", 0xFFFFFF00, UINT32);
     PADDING(msg, OFP_MATCH_OXM_PADDING(20));
     PACK(msg, "ofp_flow_mod.instructions[0].type", OFPIT_APPLY_ACTIONS, UINT16);
-    PACK(msg, "ofp_flow_mod.instructions[0].len", 40, UINT16);
+    PACK(msg, "ofp_flow_mod.instructions[0].len", 48, UINT16);
     PADDING(msg, 4);
         PACK(msg, "ofp_flow_mod.instructions[0].actions[0].type", OFPAT_OUTPUT, UINT16);
         PACK(msg, "ofp_flow_mod.instructions[0].actions[0].len", 16, UINT16);
@@ -137,6 +137,9 @@ int main(int argc, char *argv[])
         PACK(msg, "ofp_flow_mod.instructions[0].actions[1].header", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_TCP_SRC, FALSE, 16), UINT32);
         PACK(msg, "ofp_flow_mod.instructions[0].actions[1].value", 456, UINT16);
         PADDING(msg, OFP_ACTION_SET_FIELD_OXM_PADDING(6));
+        PACK(msg, "ofp_flow_mod.instructions[0].actions[2].type", OFPAT_POP_VLAN, UINT16);
+        PACK(msg, "ofp_flow_mod.instructions[0].actions[2].len", 8, UINT16);
+        PADDING(msg, 4);
     SEND(msg); // Now we pack the length correctly and send the message
     
     MESSAGE(msg2);

@@ -700,25 +700,22 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
             ADD_CHILD(tree, "ofp_action_output.max_len", 2);
             ADD_CHILD(tree, "padding", 6);
             break;
+        // Fieldless actions
         case OFPAT_COPY_TTL_OUT:
         case OFPAT_COPY_TTL_IN:
+        case OFPAT_DEC_NW_TTL:
+        case OFPAT_DEC_MPLS_TTL:
+        case OFPAT_POP_VLAN:
             ADD_CHILD(tree, "padding", 4);
+            break;
         case OFPAT_SET_MPLS_TTL:
             ADD_CHILD(tree, "ofp_action_mpls_ttl.mpls_ttl", 1);
             ADD_CHILD(tree, "padding", 3);
-            break;
-        case OFPAT_DEC_NW_TTL:
-        case OFPAT_DEC_MPLS_TTL:
-            ADD_CHILD(tree, "padding", 4);
             break;
         case OFPAT_PUSH_VLAN:
         case OFPAT_PUSH_MPLS:
             ADD_CHILD(tree, "ofp_action_push.ethertype", 2);
             ADD_CHILD(tree, "padding", 2);
-            break;
-        case OFPAT_POP_VLAN:
-            // Nothing to do here
-            ADD_CHILD(tree, "padding", 4);
             break;
         case OFPAT_POP_MPLS:
             ADD_CHILD(tree, "ofp_action_pop_mpls.ethertype", 2);
@@ -735,11 +732,11 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
             ADD_CHILD(tree, "padding", 3);
             break;
         case OFPAT_SET_FIELD:
-            // We can reuse the match function because a ofp_action_set_field struct is the same as ofp_match
+            // We can reuse ofp_oxm_field becauseofp_action_set_field contains only one OXM field
             oxm_len = dissect_ofp_oxm_field(tree);
             ADD_CHILD(tree, "padding", OFP_ACTION_SET_FIELD_OXM_PADDING(oxm_len));
             break;
-        case 0xFFFF: // EXPERIMENTER
+        case OFPAT_EXPERIMENTER:
             ADD_CHILD(tree, "ofp_action_experimenter_header.experimenter", 4);
             break;
         default:

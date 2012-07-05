@@ -32,33 +32,27 @@ namespace openflow_120 {
     private:
         DissectorContext(int);
 
-        void addChild(proto_item *, const char *, guint32);
-        void addBoolean(proto_tree *, const char *, guint32, guint32);
-        void consumeBytes(guint32);
-
         void setupCodes(void);
         void setupFlags(void);
         void setupFields(void);
         
         void dispatchMessage(tvbuff_t *, packet_info *, proto_tree *);
         void dissect_ofp_error();
-        void dissectEcho();
+        void dissect_ofp_echo();
         void dissectFeaturesRequest();
-        void dissectFeaturesReply();
-        void dissectGetSetConfig();
+        void dissect_ofp_switch_features();
+        void dissect_ofp_switch_config();
         void dissectStatsRequest();
         void dissectStatsReply();
-        void dissectPortStatus();
+        void dissect_ofp_portStatus();
         void dissect_ofp_flow_mod();
-        void dissectTableMod();
+        void dissect_ofp_table_mod();
         void dissectGroupMod();
         void dissect_ofp_match(proto_tree *);
-        void dissectPort(proto_tree *);
-        void dissectOFPPC(proto_tree *, std::string);
-        void dissectOFPPS(proto_tree *, std::string);
-        void dissectOFPPF(proto_tree *, std::string);
-        void dissectInstruction(proto_tree *);
-        void dissectAction(proto_tree *);
+        void dissect_ofp_port(proto_tree *);
+        void dissectOFPPF(proto_tree*);
+        void dissect_ofp_instruction(proto_tree *);
+        void dissect_ofp_action(proto_tree *);
         void dissectGroupBucket(proto_tree *);
         void dissect_ofp_oxm(proto_tree *, guint32 length);
         int dissect_ofp_oxm_field(proto_tree*);

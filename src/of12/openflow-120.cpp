@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2011 The Board of Trustees of The Leland Stanford Junior University 
+/* Copyright (c) 2010-2011 The Board of Trustees of The Leland Stanford Junior University
 Copyright (c) 2012 Barnstormer Softworks Ltd.
 Copyright (c) 2012 CPqD */
 
@@ -10,7 +10,7 @@ Copyright (c) 2012 CPqD */
 - Use macros wherever possible and prettier
 - Full code generation
 - Prettier OXM values and masks
-- Due to code generation, we can't show a default value for flag fields 
+- Due to code generation, we can't show a default value for flag fields
   (i.e.: OFPC_FRAG_NORMAL and OFPTC_TABLE_MISS_CONTROLLER). Fix this.
 */
 
@@ -53,8 +53,10 @@ class ZeroLenBucket { };
 #define UNPACK_OXM_HASMASK(header) ((header >> 8) & 0x00000001)
 #define UNPACK_OXM_LENGTH(header) (header & 0x000000FF)
 
-// Utils for creating type arrays
-// TODO: move these to a higher level
+/* Create a type array, used to map codes to values */
+#define TYPE_ARRAY(name) this->name = g_array_new(FALSE, FALSE, sizeof (value_string))
+/* Maps a value code to a string value */
+#define TYPE_ARRAY_ADD(array, value, str) addValueString(this->array, value, str)
 void addValueString(GArray *array, guint32 value, const gchar *str) {
     value_string vs;
     memset(&vs, 0, sizeof vs);
@@ -64,8 +66,31 @@ void addValueString(GArray *array, guint32 value, const gchar *str) {
 
     g_array_append_val(array, vs);
 }
-#define TYPE_ARRAY(name) this->name = g_array_new(FALSE, FALSE, sizeof (value_string));
-#define TYPE_ARRAY_ADD(array, value, str) addValueString(this->array, value, str)
+
+/* Create a tree structure for a given field in variable name */
+#define ADD_TREE(name, field) proto_tree* name = this->mFM.addSubtree(this->_curOFPSubtree, field, this->_tvb, this->_offset, this->_oflen - this->_offset)
+/* Create a subtree structure with a given parent and length in a variable name */
+#define ADD_SUBTREE(name, parent, field, length) proto_tree* name = this->mFM.addSubtree(parent, field, this->_tvb, this->_offset, length)
+
+/* Read values in network order */
+#define READ_UINT16(name) guint16 name = tvb_get_ntohs(this->_tvb, this->_offset);
+#define READ_UINT32(name) guint32 name = tvb_get_ntohl(this->_tvb, this->_offset);
+
+/* Adds fields to a tree */
+#define ADD_BOOLEAN(tree, field, length, bitmap) this->mFM.addBoolean(tree, field, this->_tvb, this->_offset, length, bitmap);
+#define ADD_CHILD(tree, field, length) this->mFM.addItem(tree, field, this->_tvb, this->_offset, length); this->_offset += length
+#define CONSUME_BYTES(length) this->_offset += length;
+
+/*  Values based on type arrays and masks */
+#define VALUES(array) (void *) VALS(this->array->data)
+#define NO_VALUES NULL
+#define NO_MASK 0x0
+/* A tree field contains one or more children fields */
+#define TREE_FIELD(key, desc) this->mFM.createField(key, desc, FT_NONE, BASE_NONE, NO_VALUES, NO_MASK, true);
+#define FIELD(key, desc, type, base, values, mask) this->mFM.createField(key, desc, type, base, values, mask, false);
+/* A bitmap field is a tree containing several bitmap parts */
+#define BITMAP_FIELD(field, desc, type) this->mFM.createField(field, desc, type, BASE_HEX, NO_VALUES, NO_MASK, true);
+#define BITMAP_PART(field, desc, length, mask) this->mFM.createField(field, desc, FT_BOOLEAN, length, TFS(&tfs_set_notset), mask, false);
 
 namespace openflow_120 {
 
@@ -110,7 +135,6 @@ void init(int proto_openflow) {
     DissectorContext::getInstance(proto_openflow);
 }
 
-
 DissectorContext::DissectorContext (int proto_openflow) : mProtoOpenflow(proto_openflow), mFM(proto_openflow, "of12") {
     Context = this;
 
@@ -119,695 +143,6 @@ DissectorContext::DissectorContext (int proto_openflow) : mProtoOpenflow(proto_o
     this->setupFields();
 
     this->mFM.doRegister();
-}
-
-
-/* TODO: move these to a base class */
-void DissectorContext::addChild (proto_item *tree, const char *key, guint32 len) {
-    this->mFM.addItem(tree, key, this->_tvb, this->_offset, len);
-    this->_offset += len;
-}
-
-void DissectorContext::addBoolean (proto_tree *tree, const char *key, guint32 len, guint32 value) {
-    this->mFM.addBoolean(tree, key, this->_tvb, this->_offset, len, value);
-}
-
-void DissectorContext::consumeBytes (guint32 len) {
-    this->_offset += len;
-}
-
-
-void DissectorContext::setupFields(void) {
-    this->mFM.createField("data", "Openflow Protocol", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("pad", "Padding", FT_NONE, BASE_NONE, NULL, 0x0);
-
-    // Header
-    this->mFM.createField("header", "Header", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ver", "Version", FT_UINT8, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("type", "Type", FT_UINT8, BASE_DEC, (void*) VALS(this->ofp_type->data), 0x0);
-    this->mFM.createField("len", "Length", FT_UINT8, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("xid", "Transaction ID", FT_UINT32, BASE_DEC, NULL, 0x0);
-
-    // Echo Request/Reply
-    this->mFM.createField("echo", "Echo Data", FT_STRING, BASE_NONE, NULL, 0x0);
-
-    // ofp_error
-    this->mFM.createField("ofp_error", "Error", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_error.type", "Type", FT_UINT16, BASE_DEC, (void*) VALS(this->ofp_error_type->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_HELLO_FAILED", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_hello_failed_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_BAD_REQUEST", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_bad_request_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_BAD_ACTION", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_bad_action_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_BAD_INSTRUCTION", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_bad_instruction_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_BAD_MATCH", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_bad_match_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_FLOW_MOD_FAILED", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_flow_mod_failed_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_GROUP_MOD_FAILED", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_group_mod_failed_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_PORT_MOD_FAILED", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_port_mod_failed_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_TABLE_MOD_FAILED", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_table_mod_failed_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_QUEUE_OP_FAILED", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_queue_op_failed_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_SWITCH_CONFIG_FAILED", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_switch_config_failed_code->data), 0x0);
-    this->mFM.createField("ofp_error.code.OFPET_ROLE_REQUEST_FAILED", "Code", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_role_request_failed_code->data), 0x0);
-    this->mFM.createField("ofp_error.data", "Data", FT_BYTES, BASE_NONE, NULL, 0x0);
-    
-    // Feature Request
-    this->mFM.createField("featreq", "Feature Request", FT_NONE, BASE_NONE, NULL, 0x0);
-
-    // ofp_switch_features
-    this->mFM.createField("ofp_switch_features", "Feature Reply", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_switch_features.datapath_id", "Datapath ID", FT_UINT64, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_switch_features.n_buffers", "Buffers", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_switch_features.n_tables", "Tables", FT_UINT8, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_switch_features.capabilities", "Capabilities", FT_UINT32, BASE_HEX, NULL, 0x0, true);
-    this->mFM.createField("ofp_switch_features.reserved", "Reserved", FT_UINT8, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_switch_features.ports", "Ports", FT_NONE, BASE_NONE, NULL, 0x0, true);
-
-    // Port
-    this->mFM.createField("port", "Port Description", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("port.num", "Number", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("port.hwaddr", "Hardware Address", FT_ETHER, BASE_NONE, NULL, 0x0);
-    this->mFM.createField("port.name", "Name", FT_STRING, BASE_NONE, NULL, 0x0);
-    this->mFM.createField("port.config", "Config", FT_UINT32, BASE_DEC, NULL, 0x0, true);
-    this->mFM.createField("port.state", "State", FT_UINT32, BASE_DEC, NULL, 0x0, true);
-    this->mFM.createField("port.curr_feats", "Current Features", FT_UINT32, BASE_DEC, NULL, 0x0, true);
-    this->mFM.createField("port.advertised", "Advertised Features", FT_UINT32, BASE_DEC, NULL, 0x0, true);
-    this->mFM.createField("port.supported", "Supported Features", FT_UINT32, BASE_DEC, NULL, 0x0, true);
-    this->mFM.createField("port.peer", "Peer Features", FT_UINT32, BASE_DEC, NULL, 0x0, true);
-    this->mFM.createField("port.curr_speed", "Current Speed (kbps)", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("port.max_speed", "Maximum Speed (kbps)", FT_UINT32, BASE_DEC, NULL, 0x0);
-
-    // Switch Config Reply
-    this->mFM.createField("ofp_switch_config", "Switch Configuration", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_switch_config.flags", "Flags", FT_UINT16, BASE_HEX, NULL, 0x0, true);
-    this->mFM.createField("ofp_switch_config.maxsendlen", "Max new flow bytes to controller", FT_UINT16, BASE_DEC, NULL, 0x0);
-
-    // Flow Match
-    this->mFM.createField("ofp_match", "Match", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_match.type", "Type", FT_UINT16, BASE_HEX, VALS(this->ofp_match_type->data), 0x0);
-    this->mFM.createField("ofp_match.len", "Length", FT_UINT16, BASE_DEC, NULL, 0x0);
-
-    // ofp_oxm_field
-    this->mFM.createField("ofp_oxm", "OXM field", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_oxm.oxm_class", "Class", FT_UINT16, BASE_HEX, VALS(this->ofp_oxm_class->data), 0x0, false);
-    this->mFM.createField("ofp_oxm.oxm_field", "Field", FT_UINT8, BASE_HEX, VALS(this->oxm_ofb_match_fields->data), 0xFE, false);
-    this->mFM.createField("ofp_oxm.oxm_hasmask", "Has mask", FT_BOOLEAN, 1, TFS(&tfs_yes_no), 0x01, false);
-    this->mFM.createField("ofp_oxm.oxm_length", "Length", FT_UINT16, BASE_DEC, NULL, 0x00, false);
-    this->mFM.createField("ofp_oxm.value", "Value", FT_BYTES, BASE_NONE, NULL, false);
-    this->mFM.createField("ofp_oxm.mask", "Mask", FT_BYTES, BASE_NONE, NULL, false);
-
-    // Actions
-    this->mFM.createField("ofp_action", "Action", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_action.type", "Type", FT_UINT16, BASE_HEX, VALS(this->ofp_action_type->data), 0x0);
-    this->mFM.createField("ofp_action.len", "Length", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_action.output.port", "Port", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_action.output.max_len", "Max Length", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_action.group.id", "Group ID", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_action.set_queue.id", "Queue ID", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_action.set_mpls_ttl.ttl", "MPLS TTL", FT_UINT8, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_action.push.ethertype", "Ethertype", FT_UINT16, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_action.experimenter.id", "ID", FT_UINT32, BASE_HEX, NULL, 0x0);
-
-    // Stats Request
-    this->mFM.createField("statsrq", "Stats Request", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("statsrq.type", "Type", FT_UINT16, BASE_DEC, (void*) VALS(this->ofp_stats_types->data), 0x0);
-    this->mFM.createField("statsrq.flags", "Flags", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.flags", "Flags", FT_UINT16, BASE_HEX, NULL, 0x0, true);
-    this->mFM.createField("statsrq.body", "Body", FT_NONE, BASE_NONE, NULL, 0x0, true);
-
-    // ofp_stats_reply
-    this->mFM.createField("ofp_stats_reply", "Stats Reply", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_stats_reply.type", "Type", FT_UINT16, BASE_DEC, (void*) VALS(this->ofp_stats_types->data), 0x0);
-    this->mFM.createField("ofp_stats_reply.flags", "Flags", FT_UINT16, BASE_HEX, NULL, 0x0, true);
-    this->mFM.createField("ofp_stats_reply.body", "Body", FT_NONE, BASE_NONE, NULL, 0x0, true);
-
-    // Stats Flow Reply
-    this->mFM.createField("ofp_stats_reply.flow.len", "Length", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_stats_reply.flow.table", "Table ID", FT_UINT8, BASE_DEC, NULL, 0x0);
-    /*FIXME: These two really should be one field with BASE_CUSTOM and a callback renderer */
-    this->mFM.createField("ofp_stats_reply.flow.duration.sec", "Duration (sec)", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_stats_reply.flow.duration.ns", "Duration (ns)", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_stats_reply.flow.priority", "Priority", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_stats_reply.flow.idle_timeout", "Idle Timeout", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_stats_reply.flow.hard_timeout", "Hard Timeout", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_stats_reply.flow.cookie", "Cookie", FT_UINT64, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_stats_reply.flow.count.packets", "Packet Count", FT_UINT64, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_stats_reply.flow.count.bytes", "Byte Count", FT_UINT64, BASE_DEC, NULL, 0x0);
-
-    // Port Status
-    this->mFM.createField("pstatus", "Port Status", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("pstatus.reason", "Reason", FT_UINT8, BASE_HEX, (void *) VALS(this->ofp_port_reason->data), 0x0);
-    this->mFM.createField("pdesc", "Port Description", FT_NONE, BASE_NONE, NULL, 0x0, true);
-
-    // ofp_flow_mod
-    this->mFM.createField("ofp_flow_mod", "Flow Mod", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_flow_mod.cookie", "Cookie", FT_UINT64, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.cookie_mask", "Cookie Mask", FT_UINT64, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.table_id", "Table ID", FT_UINT8, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.command", "Command", FT_UINT8, BASE_HEX, (void *) VALS(this->ofp_flow_mod_command->data), 0x0);
-    this->mFM.createField("ofp_flow_mod.idle_timeout", "Idle Timeout", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.hard_timeout", "Hard Timeout", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.priority", "Priority", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.buffer_id", "Buffer ID", FT_UINT32, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.out_port", "Output Port", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.out_group", "Output Group", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_flow_mod.flags", "Flags", FT_UINT16, BASE_HEX, NULL, 0x0, true);
-    this->mFM.createField("ofp_flow_mod.match", "Match", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    
-    // ofp_instruction
-    this->mFM.createField("ofp_instruction", "Instruction", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_instruction.type", "Type", FT_UINT16, BASE_HEX, VALS(this->ofp_instruction_type->data), 0x0);
-    this->mFM.createField("ofp_instruction.len", "Length", FT_UINT16, BASE_DEC, NULL, 0x0);
-
-    this->mFM.createField("ofp_instruction_goto_table.table_id", "Table ID", FT_UINT8, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_instruction_write_metadata.metadata", "Metadata", FT_UINT64, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_instruction_write_metadata.metadata_mask", "Metadata Mask", FT_UINT64, BASE_HEX, NULL, 0x0);
-    
-    // Group Mod
-    this->mFM.createField("groupmod", "Group Mod", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("groupmod.command", "Command", FT_UINT16, BASE_HEX, (void *) VALS(this->ofp_group_mod_command->data), 0x0);
-    this->mFM.createField("groupmod.type", "Type", FT_UINT8, BASE_HEX, (void *) VALS(this->ofp_group_type->data), 0x0);
-    this->mFM.createField("groupmod.groupid", "Group ID", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("groupmod.bucket", "Bucket", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("groupmod.bucket.len", "Length", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("groupmod.bucket.weight", "Weight", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("groupmod.bucket.watch_port", "Watch Port", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("groupmod.bucket.watch_group", "Watch Group", FT_UINT32, BASE_DEC, NULL, 0x0);
-
-    // ofp_table_mod
-    this->mFM.createField("ofp_table_mod", "Table Mod", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_table_mod.id", "ID", FT_UINT8, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_table_mod.config", "Config", FT_UINT32, BASE_HEX, NULL, 0x0, true);
-    
-    // ofp_packet_in
-    this->mFM.createField("ofp_packet_in", "Packet in", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_packet_in.buffer_id", "Buffer ID", FT_UINT32, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_packet_in.total_len", "Total length", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_packet_in.reason", "Reason", FT_UINT8, BASE_HEX, VALS(this->ofp_packet_in_reason->data), 0x0);
-    this->mFM.createField("ofp_packet_in.table_id", "Table ID", FT_UINT8, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_packet_in.data", "Data", FT_BYTES, BASE_NONE, NULL, 0x0);
-    
-    // ofp_packet_out
-    this->mFM.createField("ofp_packet_out", "Packet out", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_packet_out.buffer_id", "Buffer ID", FT_UINT32, BASE_HEX, NULL, 0x0);
-    this->mFM.createField("ofp_packet_out.in_port", "Input port", FT_UINT32, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_packet_out.actions_len", "Actions length", FT_UINT16, BASE_DEC, NULL, 0x0);
-    this->mFM.createField("ofp_packet_out.data", "Data", FT_BYTES, BASE_NONE, NULL, 0x0);    
-    
-    // ofp_role_request
-    this->mFM.createField("ofp_role_request", "Role request", FT_NONE, BASE_NONE, NULL, 0x0, true);
-    this->mFM.createField("ofp_role_request.role", "Role", FT_UINT32, BASE_HEX, VALS(this->ofp_controller_role->data), 0x0);
-    this->mFM.createField("ofp_role_request.generation_id", "Generation ID", FT_UINT64, BASE_HEX, NULL, 0x0);
-}
-
-void DissectorContext::dissectEcho(void) {
-    this->addChild(this->_curOFPSubtree, "echo", this->_oflen - this->_offset);
-    this->_offset = this->_oflen;
-}
-
-void DissectorContext::dissect_ofp_error(void) {
-    proto_tree *err_tree = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_error", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    guint16 type = tvb_get_ntohs(this->_tvb, this->_offset);
-    this->addChild(err_tree, "ofp_error.type", 2);
-
-    #define STR(a) #a
-    #define ERROR(value) \
-    case value: \
-        this->addChild(err_tree, STR(ofp_error.code.value), 2); \
-        break;
-    switch (type) {
-        ERROR(OFPET_HELLO_FAILED)
-        ERROR(OFPET_BAD_REQUEST)
-        ERROR(OFPET_BAD_ACTION)
-        ERROR(OFPET_BAD_INSTRUCTION)
-        ERROR(OFPET_BAD_MATCH)
-        ERROR(OFPET_FLOW_MOD_FAILED)
-        ERROR(OFPET_GROUP_MOD_FAILED)
-        ERROR(OFPET_PORT_MOD_FAILED)
-        ERROR(OFPET_TABLE_MOD_FAILED)
-        ERROR(OFPET_QUEUE_OP_FAILED)
-        ERROR(OFPET_SWITCH_CONFIG_FAILED)
-        ERROR(OFPET_ROLE_REQUEST_FAILED)
-        ERROR(OFPET_EXPERIMENTER)
-        default:
-            break;
-    }
-    
-    this->addChild(err_tree, "ofp_error.data", this->_oflen - this->_offset);
-}
-
-void DissectorContext::dissectFeaturesRequest(void) {
-    this->addChild(this->_curOFPSubtree, "featreq", this->_oflen - this->_offset);
-}
-
-void DissectorContext::dissectFeaturesReply(void) {
-    proto_tree *rp_tree = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_switch_features", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    this->addChild(rp_tree, "ofp_switch_features.datapath_id", 8);
-    this->addChild(rp_tree, "ofp_switch_features.n_buffers", 4);
-    this->addChild(rp_tree, "ofp_switch_features.n_tables", 1);
-    this->addChild(rp_tree, "pad", 3);
-
-    guint32 capabilities = tvb_get_ntohl(this->_tvb, this->_offset);
-    proto_tree *capt = this->mFM.addSubtree(rp_tree, "ofp_switch_features.capabilities", this->_tvb, this->_offset, 4);
-    this->addBoolean(capt, "ofp_capabilities.RESERVED", 4, capabilities);
-    this->addBoolean(capt, "ofp_capabilities.OFPC_FLOW_STATS", 4, capabilities);
-    this->addBoolean(capt, "ofp_capabilities.OFPC_TABLE_STATS", 4, capabilities);
-    this->addBoolean(capt, "ofp_capabilities.OFPC_PORT_STATS", 4, capabilities);
-    this->addBoolean(capt, "ofp_capabilities.OFPC_GROUP_STATS", 4, capabilities);
-    this->addBoolean(capt, "ofp_capabilities.OFPC_IP_REASM", 4, capabilities);
-    this->addBoolean(capt, "ofp_capabilities.OFPC_QUEUE_STATS", 4, capabilities);
-    this->addBoolean(capt, "ofp_capabilities.OFPC_PORT_BLOCKED", 4, capabilities);
-    this->consumeBytes(4);
-
-    this->addChild(rp_tree, "ofp_switch_features.reserved", 4);
-
-    // Ports
-    guint32 portlen = this->_oflen - 32;
-    if (portlen % 64 != 0) {
-      // Packet alignment is off, we should probably complain
-    }
-    else {
-      guint32 ports =  portlen / 64;
-      for (int port = 0; port < ports; ++port) {
-        this->dissectPort(rp_tree);
-      }
-    }
-}
-
-void DissectorContext::dissectGetSetConfig(void) {
-    proto_tree *rp_tree = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_switch_config", this->_tvb, this->_offset, this->_oflen - this->_offset);
-    
-    guint16 flags = tvb_get_ntohs(this->_tvb, this->_offset);
-    proto_tree *ft = this->mFM.addSubtree(rp_tree, "ofp_switch_config.flags", this->_tvb, this->_offset, 2);
-    this->addBoolean(ft, "ofp_config_flags.RESERVED", 2, flags);
-    this->addBoolean(ft, "ofp_config_flags.OFPC_FRAG_DROP", 2, flags);
-    this->addBoolean(ft, "ofp_config_flags.OFPC_FRAG_REASM", 2, flags);
-    this->addBoolean(ft, "ofp_config_flags.OFPC_INVALID_TTL_TO_CONTROLLER", 2, flags);
-    this->consumeBytes(2);
-    
-    this->addChild(rp_tree, "ofp_switch_config.maxsendlen", 2);
-    }
-
-void DissectorContext::dissectStatsRequest(void) {
-    proto_tree *rq_tree = this->mFM.addSubtree(this->_curOFPSubtree, "statsrq", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    this->addChild(rq_tree, "statsrq.type", 2);
-    this->addChild(rq_tree, "statsrq.flags", 2);
-    this->addChild(rq_tree, "pad", 4);
-    this->addChild(rq_tree, "statsrq.body", this->_oflen - this->_offset);
-}
-
-void DissectorContext::dissectStatsReply(void) {
-    proto_tree *rp_tree = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_stats_reply", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    this->addChild(rp_tree, "ofp_stats_reply.type", 2);
-    
-    guint16 flags = tvb_get_ntohs(this->_tvb, this->_offset);
-    proto_tree *ft = this->mFM.addSubtree(rp_tree, "ofp_flow_mod.flags", this->_tvb, this->_offset, 2);
-    this->addBoolean(ft, "ofp_stats_reply_flags.RESERVED", 2, flags);
-    this->addBoolean(ft, "ofp_stats_reply_flags.OFPSF_REPLY_MORE", 2, flags);
-    this->consumeBytes(2);
-    
-    this->addChild(rp_tree, "pad", 4);
-    // TODO: include this check in every case we have a body?
-    if (this->_oflen <= this->_offset)
-      return;
-    this->addChild(rp_tree, "ofp_stats_reply.body", this->_oflen - this->_offset);
-}
-
-void DissectorContext::dissectPortStatus(void) {
-    proto_tree *pt = this->mFM.addSubtree(this->_curOFPSubtree, "pstatus", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    this->addChild(pt, "pstatus.reason", 1);
-    this->addChild(pt, "pad", 7);
-
-    proto_tree *dt = this->mFM.addSubtree(pt, "pdesc", this->_tvb, this->_offset, this->_oflen - this->_offset);
-    this->dissectPort(dt);
-}
-
-void DissectorContext::dissect_ofp_flow_mod(void) {
-    proto_tree *fmt = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_flow_mod", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    this->addChild(fmt, "ofp_flow_mod.cookie", 8);
-    this->addChild(fmt, "ofp_flow_mod.cookie_mask", 8);
-    this->addChild(fmt, "ofp_flow_mod.table_id", 1);
-    this->addChild(fmt, "ofp_flow_mod.command", 1);
-    this->addChild(fmt, "ofp_flow_mod.idle_timeout", 2);
-    this->addChild(fmt, "ofp_flow_mod.hard_timeout", 2);
-    this->addChild(fmt, "ofp_flow_mod.priority", 2);
-    this->addChild(fmt, "ofp_flow_mod.buffer_id", 4);
-    this->addChild(fmt, "ofp_flow_mod.out_port", 4);
-    this->addChild(fmt, "ofp_flow_mod.out_group", 4);
-    guint16 flags = tvb_get_ntohs(this->_tvb, this->_offset);
-    proto_tree *ft = this->mFM.addSubtree(fmt, "ofp_flow_mod.flags", this->_tvb, this->_offset, 2);
-    this->addBoolean(ft, "ofp_flow_mod_flags.RESERVED", 2, flags);
-    this->addBoolean(ft, "ofp_flow_mod_flags.OFPFF_SEND_FLOW_REM", 2, flags);
-    this->addBoolean(ft, "ofp_flow_mod_flags.OFPFF_CHECK_OVERLAP", 2, flags);
-    this->addBoolean(ft, "ofp_flow_mod_flags.OFPFF_RESET_COUNTS", 2, flags);
-    this->consumeBytes(2);
-    this->addChild(fmt, "pad", 2);
-
-    proto_tree *t = this->mFM.addSubtree(fmt, "ofp_flow_mod.match", this->_tvb, this->_offset, this->_oflen - this->_offset);
-    this->dissect_ofp_match(t);
-
-    try {
-        while ((this->_oflen - this->_offset) > 0) {
-            this->dissectInstruction(fmt);
-        }
-    }
-    catch (const ZeroLenInstruction &e) {
-        return;
-    }
-}
-
-void DissectorContext::dissect_ofp_packet_in(void) {
-    proto_tree *tree = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_packet_in", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    this->addChild(tree, "ofp_packet_in.buffer_id", 4);
-    this->addChild(tree, "ofp_packet_in.total_len", 2);
-    this->addChild(tree, "ofp_packet_in.reason", 1);
-    this->addChild(tree, "ofp_packet_in.table_id", 1);
-    
-    proto_tree *subtree = this->mFM.addSubtree(tree, "ofp_flow_mod.match", this->_tvb, this->_offset, this->_oflen - this->_offset);
-    this->dissect_ofp_match(subtree);
-    
-    this->addChild(tree, "pad", 2);
-    
-    this->addChild(tree, "ofp_packet_in.data", this->_oflen - this->_offset);
-}
-
-void DissectorContext::dissect_ofp_packet_out(void) {
-    proto_tree *tree = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_packet_out", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    
-    this->addChild(tree, "ofp_packet_out.buffer_id", 4);
-    this->addChild(tree, "ofp_packet_out.in_port", 4);
-    guint16 actions_len = tvb_get_ntohs(this->_tvb, this->_offset);
-    this->addChild(tree, "ofp_packet_out.actions_len", 2);
-    this->addChild(tree, "pad", 6);
-    
-    int end = this->_offset + actions_len;
-    while (this->_offset < end) {
-        dissectAction(tree);
-    }
-    
-    this->addChild(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
-}
-    
-void DissectorContext::dissectGroupMod(void) {
-    proto_tree *t = this->mFM.addSubtree(this->_curOFPSubtree, "groupmod", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    this->addChild(t, "groupmod.command", 2);
-    this->addChild(t, "groupmod.type", 1);
-    this->addChild(t, "pad", 1);
-    this->addChild(t, "groupmod.groupid", 4);
-
-    try
-      {
-      while((this->_oflen - this->_offset) > 0)
-        {
-        this->dissectGroupBucket(t);
-        }
-      }
-    catch (const ZeroLenBucket &e)
-      {
-      return;
-      }
-}
-
-void DissectorContext::dissectTableMod(void) {
-    proto_tree *t = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_table_mod", this->_tvb, this->_offset,
-                                         this->_oflen - this->_offset);
-
-    this->addChild(t, "ofp_table_mod.id", 1);
-    this->addChild(t, "pad", 3);
-
-    guint32 config = tvb_get_ntohl(this->_tvb, this->_offset);
-    proto_tree *c = this->mFM.addSubtree(t, "ofp_table_mod.config", this->_tvb, this->_offset, 4);
-    this->addBoolean(c, "ofp_table_config.RESERVED", 4, config);
-    this->addBoolean(c, "ofp_table_config.OFPTC_TABLE_MISS_CONTINUE", 4, config);
-    this->addBoolean(c, "ofp_table_config.OFPTC_TABLE_MISS_DROP", 4, config);
-    this->consumeBytes(4);
-}
-
-void DissectorContext::dissectPort (proto_tree *tree) {
-    proto_tree *t = this->mFM.addSubtree(tree, "port", this->_tvb, this->_offset, 64);
-
-    this->addChild(t, "port.num", 4);
-    this->addChild(t, "pad", 4);
-    this->addChild(t, "port.hwaddr", 6);
-    this->addChild(t, "pad", 2);
-    this->addChild(t, "port.name", 16);
-
-    this->dissectOFPPC(t, "port.config");
-    this->dissectOFPPS(t, "port.state");
-    this->dissectOFPPF(t, "port.curr_feats");
-    this->dissectOFPPF(t, "port.advertised");
-    this->dissectOFPPF(t, "port.supported");
-    this->dissectOFPPF(t, "port.peer");
-
-    this->addChild(t, "port.curr_speed", 4);
-    this->addChild(t, "port.max_speed", 4);
-}
-
-void DissectorContext::dissectOFPPC (proto_tree *tree, std::string key) {
-    proto_tree *t = this->mFM.addSubtree(tree, key, this->_tvb, this->_offset, 4);
-    guint32 ofppc = tvb_get_ntohl(this->_tvb, this->_offset);
-    this->addBoolean(t, "ofp_port_config.RESERVED", 4, ofppc);
-    this->addBoolean(t, "ofp_port_config.OFPPC_PORT_DOWN", 4, ofppc);
-    this->addBoolean(t, "ofp_port_config.OFPPC_NO_RECV", 4, ofppc);
-    this->addBoolean(t, "ofp_port_config.OFPPC_NO_FWD", 4, ofppc);
-    this->addBoolean(t, "ofp_port_config.OFPPC_NO_PACKET_IN", 4, ofppc);
-    this->consumeBytes(4);
-}
-
-void DissectorContext::dissectOFPPS (proto_tree *tree, std::string key) {
-    proto_tree *t = this->mFM.addSubtree(tree, key, this->_tvb, this->_offset, 4);
-    guint32 ofpps = tvb_get_ntohl(this->_tvb, this->_offset);
-    this->addBoolean(t, "ofp_port_state.RESERVED", 4, ofpps);
-    this->addBoolean(t, "ofp_port_state.OFPPS_LINK_DOWN", 4, ofpps);
-    this->addBoolean(t, "ofp_port_state.OFPPS_BLOCKED", 4, ofpps);
-    this->addBoolean(t, "ofp_port_state.OFPPS_LIVE", 4, ofpps);
-    this->consumeBytes(4);
-}
-
-void DissectorContext::dissectOFPPF (proto_tree *tree, std::string key) {
-    proto_tree *t = this->mFM.addSubtree(tree, key, this->_tvb, this->_offset, 4);
-
-    guint32 ofppf = tvb_get_ntohl(this->_tvb, this->_offset);
-    this->addBoolean(t, "ofp_port_features.RESERVED", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_10MB_HD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_10MB_FD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_100MB_HD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_100MB_FD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_1GB_HD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_1GB_FD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_10GB_FD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_40GB_FD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_100GB_FD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_1TB_FD", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_OTHER", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_COPPER", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_FIBER", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_AUTONEG", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_PAUSE", 4, ofppf);
-    this->addBoolean(t, "ofp_port_features.OFPPF_PAUSE_ASYM", 4, ofppf);
-    this->consumeBytes(4);
-}
-
-void DissectorContext::dissect_ofp_match (proto_tree *tree) {
-    /*FIXME: We should care if the type isn't OXM (0x01) */
-
-    guint32 length = tvb_get_ntohs(this->_tvb, this->_offset + 2);
-
-    this->addChild(tree, "ofp_match.type", 2);
-    this->addChild(tree, "ofp_match.len", 2);
-
-    dissect_ofp_oxm(tree, length);
-}
-
-
-void DissectorContext::dissect_ofp_oxm(proto_tree *tree, guint32 length){
-    int end = this->_offset + (length - 4);
-    // Dissect each field
-    while (this->_offset < end)
-    {
-        dissect_ofp_oxm_field(tree);
-    }
-
-    this->addChild(tree, "pad", OFP_MATCH_OXM_PADDING(length));
-}
-
-int DissectorContext::dissect_ofp_oxm_field(proto_tree *tree)
-{
-    // Header contains length
-    guint32 header = tvb_get_ntohl(this->_tvb, this->_offset);
-    // Length tells us how long this field is
-    guint32 length = UNPACK_OXM_LENGTH(header);
-
-    proto_tree *t = this->mFM.addSubtree(tree, "ofp_oxm", this->_tvb, this->_offset, length + 4);
-
-    this->addChild(t, "ofp_oxm.oxm_class", 2);
-    this->addChild(t, "ofp_oxm.oxm_field", 1);
-    this->_offset -= 1; // Go back, we're not done with this byte!
-    this->addChild(t, "ofp_oxm.oxm_hasmask", 1);
-    this->addChild(t, "ofp_oxm.oxm_length", 1);
-
-    // If we have a mask, the body is double its normal size
-    if (UNPACK_OXM_HASMASK(header)) {
-        this->addChild(t, "ofp_oxm.value", length/2);
-        this->addChild(t, "ofp_oxm.mask", length/2);
-    }
-    else {
-        this->addChild(t, "ofp_oxm.value", length);
-    }
-    
-    // TODO: based on field type, use the proper format for value and mask
-    
-    return length + 4;
-}
-    
-void DissectorContext::dissectInstruction(proto_tree *parent) {
-    guint16 type = tvb_get_ntohs(this->_tvb, this->_offset);
-    guint16 len = tvb_get_ntohs(this->_tvb, this->_offset+2);
-
-    guint32 message_end = this->_offset + len;
-
-
-    if (len == 0) {
-        throw ZeroLenInstruction();
-    }
-
-    proto_tree *t = this->mFM.addSubtree(parent, "ofp_instruction", this->_tvb, this->_offset, len);
-    this->addChild(t, "ofp_instruction.type", 2);
-    this->addChild(t, "ofp_instruction.len", 2);
-
-    switch (type) {
-        case OFPIT_GOTO_TABLE:
-            this->addChild(t, "ofp_instruction_goto_table.table_id", 1);
-            this->addChild(t, "pad", 3);
-            break;
-        case OFPIT_WRITE_METADATA:
-            this->addChild(t, "pad", 4);
-            this->addChild(t, "ofp_instruction_write_metadata.metadata", 8);
-            this->addChild(t, "ofp_instruction_write_metadata.metadata_mask", 8);
-            break;
-        case OFPIT_WRITE_ACTIONS:
-        case OFPIT_APPLY_ACTIONS:
-            this->addChild(t, "pad", 4);
-            try {
-                while (this->_offset < message_end)
-                    this->dissectAction(t);
-            }
-            catch (const ZeroLenAction &e) {
-                break;
-            }
-            break;
-        case OFPIT_CLEAR_ACTIONS:
-            this->addChild(t, "pad", 4);
-            break;
-        default:
-            // Unknown type
-            this->consumeBytes(message_end - this->_offset);
-    }
-}
-    
-void DissectorContext::dissectAction(proto_tree* parent) {
-    guint16 type = tvb_get_ntohs(this->_tvb, this->_offset);
-    guint16 len = tvb_get_ntohs(this->_tvb, this->_offset+2);
-    int end;
-    int oxm_len;
-
-    if (len == 0)
-      { throw ZeroLenAction(); }
-
-    guint32 message_end = this->_offset + len;
-
-    proto_tree *t = this->mFM.addSubtree(parent, "ofp_action", this->_tvb, this->_offset, len);
-    this->addChild(t, "ofp_action.type", 2);
-    this->addChild(t, "ofp_action.len", 2);
-
-    switch (type)
-      {
-      case OFPAT_OUTPUT:
-        this->addChild(t, "ofp_action.output.port", 4);
-        this->addChild(t, "ofp_action.output.max_len", 2);
-        this->addChild(t, "pad", 6);
-        break;
-      case OFPAT_COPY_TTL_OUT:
-      case OFPAT_COPY_TTL_IN:
-        this->addChild(t, "pad", 4);
-      case OFPAT_SET_MPLS_TTL:
-        this->addChild(t, "ofp_action.set_mpls_ttl.ttl", 1);
-        this->addChild(t, "pad", 3);
-        break;
-      case OFPAT_DEC_NW_TTL:
-      case OFPAT_DEC_MPLS_TTL:
-        this->addChild(t, "pad", 4);
-        break;
-      case OFPAT_PUSH_VLAN:
-      case OFPAT_PUSH_MPLS:
-        this->addChild(t, "ofp_action.push.ethertype", 2);
-        this->addChild(t, "pad", 2);
-        break;
-      case OFPAT_POP_VLAN:
-      case OFPAT_POP_MPLS:
-        this->addChild(t, "pad", 4);
-        break;
-      case OFPAT_SET_QUEUE:
-        this->addChild(t, "ofp_action.set_queue.id", 4);
-        break;
-      case OFPAT_GROUP:
-        this->addChild(t, "ofp_action.group.id", 4);
-        break;
-      case OFPAT_SET_NW_TTL:
-        this->addChild(t, "ofp_action.set_ipv5_ttl.ttl", 1);
-        this->addChild(t, "pad", 3);
-        break;
-      case OFPAT_SET_FIELD:
-        // We can reuse the match function because a ofp_action_set_field struct is the same as ofp_match
-        oxm_len = dissect_ofp_oxm_field(t);
-        this->addChild(t, "pad", OFP_ACTION_SET_FIELD_OXM_PADDING(oxm_len));
-        break;
-      case 0xFFFF: // EXPERIMENTER
-        this->addChild(t, "ofp_action.experimenter.id", 4);
-        break;
-      default:
-        this->consumeBytes(message_end - this->_offset);
-        break;
-      }
-}
-
-void DissectorContext::dissectGroupBucket (proto_tree *pt) {
-    guint16 len = tvb_get_ntohs(this->_tvb, this->_offset);
-
-    if (len == 0)
-      { throw ZeroLenBucket(); }
-
-    guint32 message_end = this->_offset + len;
-
-    proto_tree *t = this->mFM.addSubtree(pt, "groupmod.bucket", this->_tvb, this->_offset, len);
-    this->addChild(t, "groupmod.bucket.len", 2);
-    this->addChild(t, "groupmod.bucket.weight", 2);
-    this->addChild(t, "groupmod.bucket.watch_port", 4);
-    this->addChild(t, "groupmod.bucket.watch_group", 4);
-    this->addChild(t, "pad", 4);
-
-    try {
-        while (this->_offset < message_end) {
-            this->dissectAction(t);
-        }
-    }
-    catch(const ZeroLenAction &e) {
-        return;
-    }
-}
-
-void DissectorContext::dissect_ofp_role_request() {
-    proto_tree *tree = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_role_request", this->_tvb, this->_offset, this->_oflen - this->_offset);
-
-    this->addChild(tree, "ofp_role_request.role", 4);
-    this->addChild(tree, "pad", 4);
-    this->addChild(tree, "ofp_role_request.generation_id", 8);
 }
 
 void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree) {
@@ -827,12 +162,12 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
 
     if (this->_tree) {
         this->_curOFPSubtree = this->mFM.addSubtree(tree, "data", this->_tvb, 0, -1);
-        proto_tree *hdr_tree = this->mFM.addSubtree(this->_curOFPSubtree, "header", this->_tvb, this->_offset, 8);
+        proto_tree *hdr_tree = this->mFM.addSubtree(this->_curOFPSubtree, "ofp_header", this->_tvb, this->_offset, 8);
 
-        this->addChild(hdr_tree, "ver", 1);
-        this->addChild(hdr_tree, "type", 1);
-        this->addChild(hdr_tree, "len", 2);
-        this->addChild(hdr_tree, "xid", 4);
+        ADD_CHILD(hdr_tree, "ofp_header.version", 1);
+        ADD_CHILD(hdr_tree, "ofp_header.type", 1);
+        ADD_CHILD(hdr_tree, "ofp_header.length", 2);
+        ADD_CHILD(hdr_tree, "ofp_header.xid", 4);
 
         if (this->_oflen > this->_rawLen)
             this->_oflen = this->_rawLen;
@@ -843,91 +178,751 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
                 case OFPT_HELLO:
                     IGNORE; // Nothing to parse
                     break;
-                                        
+
                 case OFPT_ERROR:
                     this->dissect_ofp_error();
                     break;
-                    
+
                 case OFPT_ECHO_REQUEST:
                 case OFPT_ECHO_REPLY:
-                    this->dissectEcho();
-                    
+                    this->dissect_ofp_echo();
+
                 case OFPT_EXPERIMENTER:
                     IGNORE; // We don't know how to dissect
                     break;
-                    
+
                 case OFPT_FEATURES_REQUEST:
                     this->dissectFeaturesRequest();
                     break;
-                    
+
                 case OFPT_FEATURES_REPLY:
-                    this->dissectFeaturesReply();
+                    this->dissect_ofp_switch_features();
                     break;
-                    
+
                 case OFPT_GET_CONFIG_REQUEST:
                     break;
-                    
+
                 case OFPT_GET_CONFIG_REPLY:
                 case OFPT_SET_CONFIG:
-                    this->dissectGetSetConfig();
+                    this->dissect_ofp_switch_config();
                     break;
-                    
+
                 case OFPT_PACKET_IN:
                     this->dissect_ofp_packet_in();
                     break;
-                    
+
                 case OFPT_FLOW_REMOVED:
                     IGNORE; // Not yet implemented
                     break;
-                    
+
                 case OFPT_PORT_STATUS:
-                    this->dissectPortStatus();
+                    this->dissect_ofp_portStatus();
                     break;
-                    
+
                 case OFPT_PACKET_OUT:
                     this->dissect_ofp_packet_out();
                     break;
-                    
+
                 case OFPT_FLOW_MOD:
                     this->dissect_ofp_flow_mod();
                     break;
-                    
+
                 case OFPT_GROUP_MOD:
                     this->dissectGroupMod();
                     break;
-                    
+
                 case OFPT_PORT_MOD:
                 case OFPT_TABLE_MOD:
-                    this->dissectTableMod();
+                    this->dissect_ofp_table_mod();
                     break;
-                    
+
                 case OFPT_STATS_REQUEST:
                     this->dissectStatsRequest();
                     break;
-                    
+
                 case OFPT_STATS_REPLY:
                     this->dissectStatsReply();
                     break;
-                    
+
                 case OFPT_BARRIER_REQUEST:
                 case OFPT_BARRIER_REPLY:
                     break;
-                    
+
                 case OFPT_QUEUE_GET_CONFIG_REQUEST:
                 case OFPT_QUEUE_GET_CONFIG_REPLY:
                     IGNORE; // Not yet implemented
                     break;
-                    
+
                 case OFPT_ROLE_REQUEST:
                 case OFPT_ROLE_REPLY:
                     this->dissect_ofp_role_request();
                     break;
-                    
+
                 default:
-                    IGNORE;
+                    IGNORE; // We don't know what to do
             }
         }
     }
+}
+
+// Dissection methods
+void DissectorContext::dissect_ofp_echo() {
+    ADD_CHILD(this->_curOFPSubtree, "echo", this->_oflen - this->_offset);
+    this->_offset = this->_oflen;
+}
+
+void DissectorContext::dissect_ofp_error() {
+    ADD_TREE(tree, "ofp_error");
+
+    READ_UINT16(type);
+    ADD_CHILD(tree, "ofp_error.type", 2);
+
+    #define STR(a) #a
+    #define ERROR(value) \
+    case value: \
+        ADD_CHILD(tree, STR(ofp_error.code.value), 2); \
+        break;
+    // TODO: this can improve...
+    switch (type) {
+        ERROR(OFPET_HELLO_FAILED)
+        ERROR(OFPET_BAD_REQUEST)
+        ERROR(OFPET_BAD_ACTION)
+        ERROR(OFPET_BAD_INSTRUCTION)
+        ERROR(OFPET_BAD_MATCH)
+        ERROR(OFPET_FLOW_MOD_FAILED)
+        ERROR(OFPET_GROUP_MOD_FAILED)
+        ERROR(OFPET_PORT_MOD_FAILED)
+        ERROR(OFPET_TABLE_MOD_FAILED)
+        ERROR(OFPET_QUEUE_OP_FAILED)
+        ERROR(OFPET_SWITCH_CONFIG_FAILED)
+        ERROR(OFPET_ROLE_REQUEST_FAILED)
+        ERROR(OFPET_EXPERIMENTER)
+        default:
+            break;
+    }
+
+    ADD_CHILD(tree, "ofp_error.data", this->_oflen - this->_offset);
+}
+
+void DissectorContext::dissectFeaturesRequest() {
+    ADD_CHILD(this->_curOFPSubtree, "featreq", this->_oflen - this->_offset);
+}
+
+void DissectorContext::dissect_ofp_switch_features() {
+    ADD_TREE(tree, "ofp_switch_features");
+
+    ADD_CHILD(tree, "ofp_switch_features.datapath_id", 8);
+    ADD_CHILD(tree, "ofp_switch_features.n_buffers", 4);
+    ADD_CHILD(tree, "ofp_switch_features.n_tables", 1);
+    ADD_CHILD(tree, "padding", 3);
+    
+    READ_UINT32(capabilities);
+    ADD_SUBTREE(capabilities_tree, tree, "ofp_switch_features.capabilities", 4);
+    ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.RESERVED", 4, capabilities);
+    ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.OFPC_FLOW_STATS", 4, capabilities);
+    ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.OFPC_TABLE_STATS", 4, capabilities);
+    ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.OFPC_PORT_STATS", 4, capabilities);
+    ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.OFPC_GROUP_STATS", 4, capabilities);
+    ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.OFPC_IP_REASM", 4, capabilities);
+    ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.OFPC_QUEUE_STATS", 4, capabilities);
+    ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.OFPC_PORT_BLOCKED", 4, capabilities);
+    CONSUME_BYTES(4);
+
+    ADD_CHILD(tree, "ofp_switch_features.reserved", 4);
+
+    // Ports
+    // TODO: shouldn't we use a while like in other parts?
+    guint32 portlen = this->_oflen - 32;
+    if (portlen % 64 != 0) {
+        // Packet alignment is off, we should probably complain
+    }
+    else {
+        guint32 ports =  portlen / 64;
+        for (int port = 0; port < ports; ++port)
+            this->dissect_ofp_port(tree);
+    }
+}
+
+void DissectorContext::dissect_ofp_switch_config() {
+    ADD_TREE(tree, "ofp_switch_config");
+
+    READ_UINT16(flags);
+    ADD_SUBTREE(flags_tree, tree, "ofp_switch_config.flags", 2);
+    ADD_BOOLEAN(flags_tree, "ofp_config_flags.RESERVED", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_config_flags.OFPC_FRAG_DROP", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_config_flags.OFPC_FRAG_REASM", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_config_flags.OFPC_INVALID_TTL_TO_CONTROLLER", 2, flags);
+    CONSUME_BYTES(2);
+
+    ADD_CHILD(tree, "ofp_switch_config.miss_send_len", 2);
+}
+
+void DissectorContext::dissectStatsRequest() {
+    ADD_TREE(tree, "statsrq");
+
+    ADD_CHILD(tree, "statsrq.type", 2);
+    ADD_CHILD(tree, "statsrq.flags", 2);
+    ADD_CHILD(tree, "padding", 4);
+    ADD_CHILD(tree, "statsrq.body", this->_oflen - this->_offset);
+}
+
+void DissectorContext::dissectStatsReply() {
+    ADD_TREE(tree, "ofp_stats_reply");
+
+    ADD_CHILD(tree, "ofp_stats_reply.type", 2);
+
+    READ_UINT16(flags);
+    ADD_SUBTREE(flags_tree, tree, "ofp_flow_mod.flags", 2);
+    ADD_BOOLEAN(flags_tree, "ofp_stats_reply_flags.RESERVED", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_stats_reply_flags.OFPSF_REPLY_MORE", 2, flags);
+    CONSUME_BYTES(2);
+
+    ADD_CHILD(tree, "padding", 4);
+    // TODO: include this check in every case we have a body?
+    if (this->_oflen <= this->_offset)
+        return;
+
+    // TODO: parse body depending on stats type
+    ADD_CHILD(tree, "ofp_stats_reply.body", this->_oflen - this->_offset);
+}
+
+void DissectorContext::dissect_ofp_portStatus() {
+    ADD_TREE(tree, "pstatus");
+
+    ADD_CHILD(tree, "pstatus.reason", 1);
+    ADD_CHILD(tree, "padding", 7);
+
+    ADD_TREE(desc_tree, "pdesc");
+    this->dissect_ofp_port(desc_tree);
+}
+
+void DissectorContext::dissect_ofp_flow_mod() {
+    ADD_TREE(tree, "ofp_flow_mod");
+
+    ADD_CHILD(tree, "ofp_flow_mod.cookie", 8);
+    ADD_CHILD(tree, "ofp_flow_mod.cookie_mask", 8);
+    ADD_CHILD(tree, "ofp_flow_mod.table_id", 1);
+    ADD_CHILD(tree, "ofp_flow_mod.command", 1);
+    ADD_CHILD(tree, "ofp_flow_mod.idle_timeout", 2);
+    ADD_CHILD(tree, "ofp_flow_mod.hard_timeout", 2);
+    ADD_CHILD(tree, "ofp_flow_mod.priority", 2);
+    ADD_CHILD(tree, "ofp_flow_mod.buffer_id", 4);
+    ADD_CHILD(tree, "ofp_flow_mod.out_port", 4);
+    ADD_CHILD(tree, "ofp_flow_mod.out_group", 4);
+    
+    READ_UINT16(flags);
+    ADD_SUBTREE(flags_tree, tree, "ofp_flow_mod.flags", 2);
+    ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.RESERVED", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.OFPFF_SEND_FLOW_REM", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.OFPFF_CHECK_OVERLAP", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.OFPFF_RESET_COUNTS", 2, flags);
+    CONSUME_BYTES(2);
+    ADD_CHILD(tree, "padding", 2);
+
+    ADD_SUBTREE(match_tree, tree, "ofp_flow_mod.match", this->_oflen - this->_offset);
+    this->dissect_ofp_match(match_tree);
+
+    try {
+        while ((this->_oflen - this->_offset) > 0)
+            this->dissect_ofp_instruction(tree);
+    }
+    catch (const ZeroLenInstruction &e) {
+        return;
+    }
+}
+
+void DissectorContext::dissect_ofp_packet_in() {
+    ADD_TREE(tree, "ofp_packet_in");
+
+    ADD_CHILD(tree, "ofp_packet_in.buffer_id", 4);
+    ADD_CHILD(tree, "ofp_packet_in.total_len", 2);
+    ADD_CHILD(tree, "ofp_packet_in.reason", 1);
+    ADD_CHILD(tree, "ofp_packet_in.table_id", 1);
+
+    ADD_SUBTREE(match_tree, tree, "ofp_packet_in.match", this->_oflen - this->_offset);
+    this->dissect_ofp_match(match_tree);
+
+    ADD_CHILD(tree, "padding", 2);
+
+    ADD_CHILD(tree, "ofp_packet_in.data", this->_oflen - this->_offset);
+}
+
+void DissectorContext::dissect_ofp_packet_out() {
+    ADD_TREE(tree, "ofp_packet_out");
+
+    ADD_CHILD(tree, "ofp_packet_out.buffer_id", 4);
+    ADD_CHILD(tree, "ofp_packet_out.in_port", 4);
+    READ_UINT16(actions_len);
+    ADD_CHILD(tree, "ofp_packet_out.actions_len", 2);
+    ADD_CHILD(tree, "padding", 6);
+
+    int end = this->_offset + actions_len;
+    while (this->_offset < end) {
+        dissect_ofp_action(tree);
+    }
+
+    ADD_CHILD(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
+}
+
+void DissectorContext::dissectGroupMod() {
+    ADD_TREE(tree, "groupmod");
+
+    ADD_CHILD(tree, "groupmod.command", 2);
+    ADD_CHILD(tree, "groupmod.type", 1);
+    ADD_CHILD(tree, "padding", 1);
+    ADD_CHILD(tree, "groupmod.groupid", 4);
+
+    try
+      {
+      while((this->_oflen - this->_offset) > 0)
+        {
+        this->dissectGroupBucket(tree);
+        }
+      }
+    catch (const ZeroLenBucket &e)
+      {
+      return;
+      }
+}
+
+void DissectorContext::dissect_ofp_table_mod() {
+    ADD_TREE(tree, "ofp_table_mod");
+
+    ADD_CHILD(tree, "ofp_table_mod.id", 1);
+    ADD_CHILD(tree, "padding", 3);
+
+    READ_UINT32(config);
+    ADD_SUBTREE(config_tree, tree, "ofp_table_mod.config", 4);
+    ADD_BOOLEAN(config_tree, "ofp_table_config.RESERVED", 4, config);
+    ADD_BOOLEAN(config_tree, "ofp_table_config.OFPTC_TABLE_MISS_CONTINUE", 4, config);
+    ADD_BOOLEAN(config_tree, "ofp_table_config.OFPTC_TABLE_MISS_DROP", 4, config);
+    CONSUME_BYTES(4);
+}
+
+void DissectorContext::dissect_ofp_port(proto_tree* parent) {
+    ADD_SUBTREE(tree, parent, "ofp_port", 64);
+
+    ADD_CHILD(tree, "ofp_port.num", 4);
+    ADD_CHILD(tree, "padding", 4);
+    ADD_CHILD(tree, "ofp_port.hwaddr", 6);
+    ADD_CHILD(tree, "padding", 2);
+    ADD_CHILD(tree, "ofp_port.name", 16);
+
+    ADD_SUBTREE(config_tree, tree, "ofp_port.config", 4);
+    READ_UINT32(ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_config.RESERVED", 4, ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_config.OFPPC_PORT_DOWN", 4, ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_config.OFPPC_NO_RECV", 4, ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_config.OFPPC_NO_FWD", 4, ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_config.OFPPC_NO_PACKET_IN", 4, ofppc);
+    CONSUME_BYTES(4);
+
+    ADD_SUBTREE(state_tree, tree, "ofp_port.state", 4);
+    READ_UINT32(ofpps);
+    ADD_BOOLEAN(state_tree, "ofp_port_state.RESERVED", 4, ofpps);
+    ADD_BOOLEAN(state_tree, "ofp_port_state.OFPPS_LINK_DOWN", 4, ofpps);
+    ADD_BOOLEAN(state_tree, "ofp_port_state.OFPPS_BLOCKED", 4, ofpps);
+    ADD_BOOLEAN(state_tree, "ofp_port_state.OFPPS_LIVE", 4, ofpps);
+    CONSUME_BYTES(4);
+
+    ADD_SUBTREE(curr_feats_tree, tree, "ofp_port.curr_feats", 4);
+    dissectOFPPF(curr_feats_tree);
+
+    ADD_SUBTREE(advertised_tree, tree, "ofp_port.advertised", 4);
+    dissectOFPPF(advertised_tree);
+
+    ADD_SUBTREE(supported_tree, tree, "ofp_port.supported", 4);
+    dissectOFPPF(supported_tree);
+
+    ADD_SUBTREE(peer_tree, tree, "ofp_port.peer", 4);
+    dissectOFPPF(peer_tree);
+
+    ADD_CHILD(tree, "ofp_port.curr_speed", 4);
+    ADD_CHILD(tree, "ofp_port.max_speed", 4);
+}
+
+void DissectorContext::dissectOFPPF (proto_tree *tree) {
+    READ_UINT32(ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.RESERVED", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_10MB_HD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_10MB_FD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_100MB_HD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_100MB_FD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_1GB_HD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_1GB_FD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_10GB_FD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_40GB_FD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_100GB_FD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_1TB_FD", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_OTHER", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_COPPER", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_FIBER", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_AUTONEG", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_PAUSE", 4, ofppf);
+    ADD_BOOLEAN(tree, "ofp_port_features.OFPPF_PAUSE_ASYM", 4, ofppf);
+    CONSUME_BYTES(4);
+}
+
+void DissectorContext::dissect_ofp_match (proto_tree *tree) {
+    /*FIXME: We should care if the type isn't OXM (0x01) */
+
+    ADD_CHILD(tree, "ofp_match.type", 2);
+    READ_UINT16(length);
+    ADD_CHILD(tree, "ofp_match.len", 2);
+
+    dissect_ofp_oxm(tree, length);
+}
+
+
+void DissectorContext::dissect_ofp_oxm(proto_tree *parent, guint32 length){
+    int end = this->_offset + (length - 4);
+    // Dissect each field
+    while (this->_offset < end) {
+        dissect_ofp_oxm_field(parent);
+    }
+
+    ADD_CHILD(parent, "padding", OFP_MATCH_OXM_PADDING(length));
+}
+
+int DissectorContext::dissect_ofp_oxm_field(proto_tree *parent) {
+    // Header contains length
+    READ_UINT32(header);
+    // Length tells us how long this field is
+    guint32 length = UNPACK_OXM_LENGTH(header);
+
+    ADD_SUBTREE(tree, parent, "ofp_oxm", length + 4);
+    ADD_CHILD(tree, "ofp_oxm.oxm_class", 2);
+    ADD_CHILD(tree, "ofp_oxm.oxm_field", 1);
+    this->_offset -= 1; // Go back, we're not done with this byte!
+    ADD_CHILD(tree, "ofp_oxm.oxm_hasmask", 1);
+    ADD_CHILD(tree, "ofp_oxm.oxm_length", 1);
+
+    // If we have a mask, the body is double its normal size
+    if (UNPACK_OXM_HASMASK(header)) {
+        ADD_CHILD(tree, "ofp_oxm.value", length/2);
+        ADD_CHILD(tree, "ofp_oxm.mask", length/2);
+    }
+    else {
+        ADD_CHILD(tree, "ofp_oxm.value", length);
+    }
+
+    // TODO: based on field type, use the proper format for value and mask
+
+    return length + 4;
+}
+
+void DissectorContext::dissect_ofp_instruction(proto_tree* parent) {
+    READ_UINT16(type);
+    this->_offset += 2; // read ahead
+    READ_UINT16(len);
+    this->_offset -= 2;
+    
+    guint32 message_end = this->_offset + len;
+
+    if (len == 0) {
+        throw ZeroLenInstruction();
+    }
+
+    ADD_SUBTREE(tree, parent, "ofp_instruction", len);
+    ADD_CHILD(tree, "ofp_instruction.type", 2);
+    ADD_CHILD(tree, "ofp_instruction.len", 2);
+
+    switch (type) {
+        case OFPIT_GOTO_TABLE:
+            ADD_CHILD(tree, "ofp_instruction_goto_table.table_id", 1);
+            ADD_CHILD(tree, "padding", 3);
+            break;
+        case OFPIT_WRITE_METADATA:
+            ADD_CHILD(tree, "padding", 4);
+            ADD_CHILD(tree, "ofp_instruction_write_metadata.metadata", 8);
+            ADD_CHILD(tree, "ofp_instruction_write_metadata.metadata_mask", 8);
+            break;
+        case OFPIT_WRITE_ACTIONS:
+        case OFPIT_APPLY_ACTIONS:
+            ADD_CHILD(tree, "padding", 4);
+            try {
+                while (this->_offset < message_end)
+                    this->dissect_ofp_action(tree);
+            }
+            catch (const ZeroLenAction &e) {
+                break;
+            }
+            break;
+        case OFPIT_CLEAR_ACTIONS:
+            ADD_CHILD(tree, "padding", 4);
+            break;
+        default:
+            // Unknown type
+            CONSUME_BYTES(message_end - this->_offset);
+    }
+}
+
+void DissectorContext::dissect_ofp_action(proto_tree* parent) {
+    READ_UINT16(type);
+    this->_offset += 2; // read ahead
+    READ_UINT16(len);
+    this->_offset -= 2;
+    
+    guint32 end, oxm_len;
+
+    if (len == 0)
+      { throw ZeroLenAction(); }
+
+    guint32 message_end = this->_offset + len;
+
+    ADD_SUBTREE(tree, parent, "ofp_action", len);
+    ADD_CHILD(tree, "ofp_action.type", 2);
+    ADD_CHILD(tree, "ofp_action.len", 2);
+
+    switch (type) {
+        case OFPAT_OUTPUT:
+            ADD_CHILD(tree, "ofp_action.output.port", 4);
+            ADD_CHILD(tree, "ofp_action.output.max_len", 2);
+            ADD_CHILD(tree, "padding", 6);
+            break;
+        case OFPAT_COPY_TTL_OUT:
+        case OFPAT_COPY_TTL_IN:
+            ADD_CHILD(tree, "padding", 4);
+        case OFPAT_SET_MPLS_TTL:
+            ADD_CHILD(tree, "ofp_action.set_mpls_ttl.ttl", 1);
+            ADD_CHILD(tree, "padding", 3);
+            break;
+        case OFPAT_DEC_NW_TTL:
+        case OFPAT_DEC_MPLS_TTL:
+            ADD_CHILD(tree, "padding", 4);
+            break;
+        case OFPAT_PUSH_VLAN:
+        case OFPAT_PUSH_MPLS:
+            ADD_CHILD(tree, "ofp_action.push.ethertype", 2);
+            ADD_CHILD(tree, "padding", 2);
+            break;
+        case OFPAT_POP_VLAN:
+        case OFPAT_POP_MPLS:
+            ADD_CHILD(tree, "padding", 4);
+            break;
+        case OFPAT_SET_QUEUE:
+            ADD_CHILD(tree, "ofp_action.set_queue.id", 4);
+            break;
+        case OFPAT_GROUP:
+            ADD_CHILD(tree, "ofp_action.group.id", 4);
+            break;
+        case OFPAT_SET_NW_TTL:
+            ADD_CHILD(tree, "ofp_action.set_ipv5_ttl.ttl", 1);
+            ADD_CHILD(tree, "padding", 3);
+            break;
+        case OFPAT_SET_FIELD:
+            // We can reuse the match function because a ofp_action_set_field struct is the same as ofp_match
+            oxm_len = dissect_ofp_oxm_field(tree);
+            ADD_CHILD(tree, "padding", OFP_ACTION_SET_FIELD_OXM_PADDING(oxm_len));
+            break;
+        case 0xFFFF: // EXPERIMENTER
+            ADD_CHILD(tree, "ofp_action.experimenter.id", 4);
+            break;
+        default:
+            CONSUME_BYTES(message_end - this->_offset);
+            break;
+    }
+}
+
+void DissectorContext::dissectGroupBucket(proto_tree* parent) {
+    READ_UINT16(len);
+    
+    if (len == 0)
+        throw ZeroLenBucket(); 
+
+    guint32 message_end = this->_offset + len;
+
+    ADD_SUBTREE(tree, parent, "groupmod.bucket", len);
+    ADD_CHILD(tree, "groupmod.bucket.len", 2);
+    ADD_CHILD(tree, "groupmod.bucket.weight", 2);
+    ADD_CHILD(tree, "groupmod.bucket.watch_port", 4);
+    ADD_CHILD(tree, "groupmod.bucket.watch_group", 4);
+    ADD_CHILD(tree, "padding", 4);
+
+    try {
+        while (this->_offset < message_end) {
+            this->dissect_ofp_action(tree);
+        }
+    }
+    catch(const ZeroLenAction &e) {
+        return;
+    }
+}
+
+void DissectorContext::dissect_ofp_role_request() {
+    ADD_TREE(tree, "ofp_role_request");
+    ADD_CHILD(tree, "ofp_role_request.role", 4);
+    ADD_CHILD(tree, "padding", 4);
+    ADD_CHILD(tree, "ofp_role_request.generation_id", 8);
+}
+
+// Boring part
+void DissectorContext::setupFields() {
+    TREE_FIELD("data", "Openflow Protocol");
+    FIELD("padding", "Padding", FT_NONE, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // Header
+    TREE_FIELD("ofp_header", "Header");
+    FIELD("ofp_header.version", "Version", FT_UINT8, BASE_HEX, NO_VALUES, 0x0);
+    FIELD("ofp_header.type", "Type", FT_UINT8, BASE_DEC, VALUES(ofp_type), 0x0);
+    FIELD("ofp_header.length", "Length", FT_UINT8, BASE_DEC, NO_VALUES, 0x0);
+    FIELD("ofp_header.xid", "Transaction ID", FT_UINT32, BASE_DEC, NO_VALUES, 0x0);
+
+    // Echo Request/Reply
+    FIELD("echo", "Echo Data", FT_STRING, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // ofp_error
+    TREE_FIELD("ofp_error", "Error");
+    FIELD("ofp_error.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_error_type), NO_MASK);
+    FIELD("ofp_error.code.OFPET_HELLO_FAILED", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_hello_failed_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_BAD_REQUEST", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_bad_request_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_BAD_ACTION", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_bad_action_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_BAD_INSTRUCTION", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_bad_instruction_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_BAD_MATCH", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_bad_match_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_FLOW_MOD_FAILED", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_flow_mod_failed_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_GROUP_MOD_FAILED", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_group_mod_failed_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_PORT_MOD_FAILED", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_port_mod_failed_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_TABLE_MOD_FAILED", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_table_mod_failed_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_QUEUE_OP_FAILED", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_queue_op_failed_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_SWITCH_CONFIG_FAILED", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_switch_config_failed_code), NO_MASK);
+    FIELD("ofp_error.code.OFPET_ROLE_REQUEST_FAILED", "Code", FT_UINT16, BASE_HEX, VALUES(ofp_role_request_failed_code), NO_MASK);
+    FIELD("ofp_error.data", "Data", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // Feature Request
+    FIELD("featreq", "Feature Request", FT_NONE, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // ofp_switch_features
+    TREE_FIELD("ofp_switch_features", "Feature Reply");
+    FIELD("ofp_switch_features.datapath_id", "Datapath ID", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_switch_features.n_buffers", "Buffers", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_switch_features.n_tables", "Tables", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    BITMAP_FIELD("ofp_switch_features.capabilities", "Capabilities", FT_UINT32);
+    FIELD("ofp_switch_features.reserved", "Reserved", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    TREE_FIELD("ofp_switch_features.ports", "Ports");
+
+    // Port
+    TREE_FIELD("ofp_port", "Port Description");
+    FIELD("ofp_port.num", "Number", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_port.hwaddr", "Hardware Address", FT_ETHER, BASE_NONE, NO_VALUES, NO_MASK);
+    FIELD("ofp_port.name", "Name", FT_STRING, BASE_NONE, NO_VALUES, NO_MASK);
+    BITMAP_FIELD("ofp_port.config", "Config", FT_UINT32);
+    BITMAP_FIELD("ofp_port.state", "State", FT_UINT32);
+    BITMAP_FIELD("ofp_port.curr_feats", "Current Features", FT_UINT32);
+    BITMAP_FIELD("ofp_port.advertised", "Advertised Features", FT_UINT32);
+    BITMAP_FIELD("ofp_port.supported", "Supported Features", FT_UINT32);
+    BITMAP_FIELD("ofp_port.peer", "Peer Features", FT_UINT32);
+    FIELD("ofp_port.curr_speed", "Current Speed (kbps)", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_port.max_speed", "Maximum Speed (kbps)", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+
+    // Switch Config Reply
+    TREE_FIELD("ofp_switch_config", "Switch Configuration");
+    BITMAP_FIELD("ofp_switch_config.flags", "Flags", FT_UINT16);
+    FIELD("ofp_switch_config.miss_send_len", "Max new flow bytes to controller", FT_UINT16, BASE_DEC, VALUES(ofp_controller_max_len), NO_MASK);
+
+    // Flow Match
+    TREE_FIELD("ofp_match", "Match");
+    FIELD("ofp_match.type", "Type", FT_UINT16, BASE_HEX, VALUES(ofp_match_type), NO_MASK);
+    FIELD("ofp_match.len", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+
+    // ofp_oxm_field
+    TREE_FIELD("ofp_oxm", "OXM field");
+    FIELD("ofp_oxm.oxm_class", "Class", FT_UINT16, BASE_HEX, VALUES(ofp_oxm_class), NO_MASK);
+    FIELD("ofp_oxm.oxm_field", "Field", FT_UINT8, BASE_HEX, VALUES(oxm_ofb_match_fields), 0xFE);
+    FIELD("ofp_oxm.oxm_hasmask", "Has mask", FT_BOOLEAN, 1, TFS(&tfs_yes_no), 0x01);
+    FIELD("ofp_oxm.oxm_length", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_oxm.value", "Value", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+    FIELD("ofp_oxm.mask", "Mask", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // Actions
+    TREE_FIELD("ofp_action", "Action");
+    FIELD("ofp_action.type", "Type", FT_UINT16, BASE_HEX, VALUES(ofp_action_type), NO_MASK);
+    FIELD("ofp_action.len", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action.output.port", "Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action.output.max_len", "Max Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action.group.id", "Group ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action.set_queue.id", "Queue ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action.set_mpls_ttl.ttl", "MPLS TTL", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action.push.ethertype", "Ethertype", FT_UINT16, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_action.experimenter.id", "ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
+
+    // Stats Request
+    TREE_FIELD("statsrq", "Stats Request");
+    FIELD("statsrq.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_stats_types), NO_MASK);
+    FIELD("statsrq.flags", "Flags", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    BITMAP_FIELD("ofp_flow_mod.flags", "Flags", FT_UINT16);
+    FIELD("statsrq.body", "Body", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // ofp_stats_reply
+    TREE_FIELD("ofp_stats_reply", "Stats Reply");
+    FIELD("ofp_stats_reply.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_stats_types), NO_MASK);
+    BITMAP_FIELD("ofp_stats_reply.flags", "Flags", FT_UINT16);
+    FIELD("ofp_stats_reply.body", "Body", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // Port Status
+    TREE_FIELD("pstatus", "Port Status");
+    FIELD("pstatus.reason", "Reason", FT_UINT8, BASE_HEX, VALUES(ofp_port_reason), NO_MASK);
+    TREE_FIELD("pdesc", "Port Description");
+
+    // ofp_flow_mod
+    TREE_FIELD("ofp_flow_mod", "Flow Mod");
+    FIELD("ofp_flow_mod.cookie", "Cookie", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_mod.cookie_mask", "Cookie Mask", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_mod.table_id", "Table ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_mod.command", "Command", FT_UINT8, BASE_HEX, VALUES(ofp_flow_mod_command), NO_MASK);
+    FIELD("ofp_flow_mod.idle_timeout", "Idle Timeout", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_mod.hard_timeout", "Hard Timeout", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_mod.priority", "Priority", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_mod.buffer_id", "Buffer ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_mod.out_port", "Output Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_mod.out_group", "Output Group", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    BITMAP_FIELD("ofp_flow_mod.flags", "Flags", FT_UINT16);
+    TREE_FIELD("ofp_flow_mod.match", "Match");
+
+    // ofp_instruction
+    TREE_FIELD("ofp_instruction", "Instruction");
+    FIELD("ofp_instruction.type", "Type", FT_UINT16, BASE_HEX, VALUES(ofp_instruction_type), NO_MASK);
+    FIELD("ofp_instruction.len", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+
+    FIELD("ofp_instruction_goto_table.table_id", "Table ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_instruction_write_metadata.metadata", "Metadata", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_instruction_write_metadata.metadata_mask", "Metadata Mask", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+
+    // Group Mod
+    TREE_FIELD("groupmod", "Group Mod");
+    FIELD("groupmod.command", "Command", FT_UINT16, BASE_HEX, VALUES(ofp_group_mod_command), NO_MASK);
+    FIELD("groupmod.type", "Type", FT_UINT8, BASE_HEX, VALUES(ofp_group_type), NO_MASK);
+    FIELD("groupmod.groupid", "Group ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    TREE_FIELD("groupmod.bucket", "Bucket");
+    FIELD("groupmod.bucket.len", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("groupmod.bucket.weight", "Weight", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("groupmod.bucket.watch_port", "Watch Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("groupmod.bucket.watch_group", "Watch Group", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+
+    // ofp_table_mod
+    TREE_FIELD("ofp_table_mod", "Table Mod");
+    FIELD("ofp_table_mod.id", "ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    BITMAP_FIELD("ofp_table_mod.config", "Config", FT_UINT32);
+
+    // ofp_packet_in
+    TREE_FIELD("ofp_packet_in", "Packet in");
+    FIELD("ofp_packet_in.buffer_id", "Buffer ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_packet_in.total_len", "Total length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_packet_in.reason", "Reason", FT_UINT8, BASE_HEX, VALUES(ofp_packet_in_reason), NO_MASK);
+    FIELD("ofp_packet_in.table_id", "Table ID", FT_UINT8, BASE_HEX, NO_VALUES, NO_MASK);
+    TREE_FIELD("ofp_packet_in.match", "Match");
+    FIELD("ofp_packet_in.data", "Data", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // ofp_packet_out
+    TREE_FIELD("ofp_packet_out", "Packet out");
+    FIELD("ofp_packet_out.buffer_id", "Buffer ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_packet_out.in_port", "Input port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_packet_out.actions_len", "Actions length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_packet_out.data", "Data", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // ofp_role_request
+    TREE_FIELD("ofp_role_request", "Role request");
+    FIELD("ofp_role_request.role", "Role", FT_UINT32, BASE_HEX, VALUES(ofp_controller_role), NO_MASK);
+    FIELD("ofp_role_request.generation_id", "Generation ID", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
 }
 
 // Generated code
@@ -951,7 +946,7 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_type, OFPT_FLOW_MOD, "Flow mod (CSM) - OFPT_FLOW_MOD");
     TYPE_ARRAY_ADD(ofp_type, OFPT_GROUP_MOD, "Group mod (CSM) - OFPT_GROUP_MOD");
     TYPE_ARRAY_ADD(ofp_type, OFPT_PORT_MOD, "Port mod (CSM) - OFPT_PORT_MOD");
-    TYPE_ARRAY_ADD(ofp_type, OFPT_TABLE_MOD, "Table mod(CSM) - OFPT_TABLE_MOD");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_TABLE_MOD, "Table mod (CSM) - OFPT_TABLE_MOD");
     TYPE_ARRAY_ADD(ofp_type, OFPT_STATS_REQUEST, "Stats request (CSM) - OFPT_STATS_REQUEST");
     TYPE_ARRAY_ADD(ofp_type, OFPT_STATS_REPLY, "Stats reply (CSM) - OFPT_STATS_REPLY");
     TYPE_ARRAY_ADD(ofp_type, OFPT_BARRIER_REQUEST, "Barrier request (CSM) - OFPT_BARRIER_REQUEST");
@@ -1070,7 +1065,7 @@ void DissectorContext::setupCodes(void) {
     // ofp_table
     TYPE_ARRAY(ofp_table);
     TYPE_ARRAY_ADD(ofp_table, OFPTT_MAX, "Last usable table number - OFPTT_MAX");
-    TYPE_ARRAY_ADD(ofp_table, OFPTT_ALL, "flow stats and flow deletes - OFPTT_ALL");
+    TYPE_ARRAY_ADD(ofp_table, OFPTT_ALL, "Wildcard table used for table config flow stats and flow deletes - OFPTT_ALL");
 
     // ofp_flow_mod_command
     TYPE_ARRAY(ofp_flow_mod_command);
@@ -1280,79 +1275,80 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_STALE, "Stale Message: old generation_id - OFPRRFC_STALE");
     TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_UNSUP, "Controller role change unsupported - OFPRRFC_UNSUP");
     TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_BAD_ROLE, "Invalid role - OFPRRFC_BAD_ROLE");
+
 }
 
-// Generated code
+
 void DissectorContext::setupFlags(void) {
     // ofp_port_config
-    this->mFM.createField("ofp_port_config.OFPPC_PORT_DOWN", "Port is administratively down", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPC_PORT_DOWN);
-    this->mFM.createField("ofp_port_config.OFPPC_NO_RECV", "Drop all packets received by port", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPC_NO_RECV);
-    this->mFM.createField("ofp_port_config.OFPPC_NO_FWD", "Drop packets forwarded to port", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPC_NO_FWD);
-    this->mFM.createField("ofp_port_config.OFPPC_NO_PACKET_IN", "Do not send packet-in msgs for port", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPC_NO_PACKET_IN);
-    this->mFM.createField("ofp_port_config.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xffffff9a);
+    BITMAP_PART("ofp_port_config.OFPPC_PORT_DOWN", "Port is administratively down", 32, OFPPC_PORT_DOWN);
+    BITMAP_PART("ofp_port_config.OFPPC_NO_RECV", "Drop all packets received by port", 32, OFPPC_NO_RECV);
+    BITMAP_PART("ofp_port_config.OFPPC_NO_FWD", "Drop packets forwarded to port", 32, OFPPC_NO_FWD);
+    BITMAP_PART("ofp_port_config.OFPPC_NO_PACKET_IN", "Do not send packet-in msgs for port", 32, OFPPC_NO_PACKET_IN);
+    BITMAP_PART("ofp_port_config.RESERVED", "Reserved", 32, 0xffffff9a);
 
     // ofp_port_state
-    this->mFM.createField("ofp_port_state.OFPPS_LINK_DOWN", "No physical link present", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPS_LINK_DOWN);
-    this->mFM.createField("ofp_port_state.OFPPS_BLOCKED", "Port is blocked", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPS_BLOCKED);
-    this->mFM.createField("ofp_port_state.OFPPS_LIVE", "Live for Fast Failover Group", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPS_LIVE);
-    this->mFM.createField("ofp_port_state.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xfffffff8);
+    BITMAP_PART("ofp_port_state.OFPPS_LINK_DOWN", "No physical link present", 32, OFPPS_LINK_DOWN);
+    BITMAP_PART("ofp_port_state.OFPPS_BLOCKED", "Port is blocked", 32, OFPPS_BLOCKED);
+    BITMAP_PART("ofp_port_state.OFPPS_LIVE", "Live for Fast Failover Group", 32, OFPPS_LIVE);
+    BITMAP_PART("ofp_port_state.RESERVED", "Reserved", 32, 0xfffffff8);
 
     // ofp_port_features
-    this->mFM.createField("ofp_port_features.OFPPF_10MB_HD", "10 Mb half-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_10MB_HD);
-    this->mFM.createField("ofp_port_features.OFPPF_10MB_FD", "10 Mb full-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_10MB_FD);
-    this->mFM.createField("ofp_port_features.OFPPF_100MB_HD", "100 Mb half-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_100MB_HD);
-    this->mFM.createField("ofp_port_features.OFPPF_100MB_FD", "100 Mb full-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_100MB_FD);
-    this->mFM.createField("ofp_port_features.OFPPF_1GB_HD", "1 Gb half-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_1GB_HD);
-    this->mFM.createField("ofp_port_features.OFPPF_1GB_FD", "1 Gb full-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_1GB_FD);
-    this->mFM.createField("ofp_port_features.OFPPF_10GB_FD", "10 Gb full-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_10GB_FD);
-    this->mFM.createField("ofp_port_features.OFPPF_40GB_FD", "40 Gb full-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_40GB_FD);
-    this->mFM.createField("ofp_port_features.OFPPF_100GB_FD", "100 Gb full-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_100GB_FD);
-    this->mFM.createField("ofp_port_features.OFPPF_1TB_FD", "1 Tb full-duplex rate support", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_1TB_FD);
-    this->mFM.createField("ofp_port_features.OFPPF_OTHER", "Other rate, not in the list", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_OTHER);
-    this->mFM.createField("ofp_port_features.OFPPF_COPPER", "Copper medium", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_COPPER);
-    this->mFM.createField("ofp_port_features.OFPPF_FIBER", "Fiber medium", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_FIBER);
-    this->mFM.createField("ofp_port_features.OFPPF_AUTONEG", "Auto-negotiation", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_AUTONEG);
-    this->mFM.createField("ofp_port_features.OFPPF_PAUSE", "Pause", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_PAUSE);
-    this->mFM.createField("ofp_port_features.OFPPF_PAUSE_ASYM", "Asymmetric pause", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPPF_PAUSE_ASYM);
-    this->mFM.createField("ofp_port_features.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xffff0000);
+    BITMAP_PART("ofp_port_features.OFPPF_10MB_HD", "10 Mb half-duplex rate support", 32, OFPPF_10MB_HD);
+    BITMAP_PART("ofp_port_features.OFPPF_10MB_FD", "10 Mb full-duplex rate support", 32, OFPPF_10MB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_100MB_HD", "100 Mb half-duplex rate support", 32, OFPPF_100MB_HD);
+    BITMAP_PART("ofp_port_features.OFPPF_100MB_FD", "100 Mb full-duplex rate support", 32, OFPPF_100MB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_1GB_HD", "1 Gb half-duplex rate support", 32, OFPPF_1GB_HD);
+    BITMAP_PART("ofp_port_features.OFPPF_1GB_FD", "1 Gb full-duplex rate support", 32, OFPPF_1GB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_10GB_FD", "10 Gb full-duplex rate support", 32, OFPPF_10GB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_40GB_FD", "40 Gb full-duplex rate support", 32, OFPPF_40GB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_100GB_FD", "100 Gb full-duplex rate support", 32, OFPPF_100GB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_1TB_FD", "1 Tb full-duplex rate support", 32, OFPPF_1TB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_OTHER", "Other rate, not in the list", 32, OFPPF_OTHER);
+    BITMAP_PART("ofp_port_features.OFPPF_COPPER", "Copper medium", 32, OFPPF_COPPER);
+    BITMAP_PART("ofp_port_features.OFPPF_FIBER", "Fiber medium", 32, OFPPF_FIBER);
+    BITMAP_PART("ofp_port_features.OFPPF_AUTONEG", "Auto-negotiation", 32, OFPPF_AUTONEG);
+    BITMAP_PART("ofp_port_features.OFPPF_PAUSE", "Pause", 32, OFPPF_PAUSE);
+    BITMAP_PART("ofp_port_features.OFPPF_PAUSE_ASYM", "Asymmetric pause", 32, OFPPF_PAUSE_ASYM);
+    BITMAP_PART("ofp_port_features.RESERVED", "Reserved", 32, 0xffff0000);
 
     // ofp_capabilities
-    this->mFM.createField("ofp_capabilities.OFPC_FLOW_STATS", "Flow statistics", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_FLOW_STATS);
-    this->mFM.createField("ofp_capabilities.OFPC_TABLE_STATS", "Table statistics", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_TABLE_STATS);
-    this->mFM.createField("ofp_capabilities.OFPC_PORT_STATS", "Port statistics", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_PORT_STATS);
-    this->mFM.createField("ofp_capabilities.OFPC_GROUP_STATS", "Group statistics", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_GROUP_STATS);
-    this->mFM.createField("ofp_capabilities.OFPC_IP_REASM", "Can reassemble IP fragments", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_IP_REASM);
-    this->mFM.createField("ofp_capabilities.OFPC_QUEUE_STATS", "Queue statistics", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_QUEUE_STATS);
-    this->mFM.createField("ofp_capabilities.OFPC_PORT_BLOCKED", "Switch will block looping ports", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_PORT_BLOCKED);
-    this->mFM.createField("ofp_capabilities.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xfffffe90);
+    BITMAP_PART("ofp_capabilities.OFPC_FLOW_STATS", "Flow statistics", 32, OFPC_FLOW_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_TABLE_STATS", "Table statistics", 32, OFPC_TABLE_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_PORT_STATS", "Port statistics", 32, OFPC_PORT_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_GROUP_STATS", "Group statistics", 32, OFPC_GROUP_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_IP_REASM", "Can reassemble IP fragments", 32, OFPC_IP_REASM);
+    BITMAP_PART("ofp_capabilities.OFPC_QUEUE_STATS", "Queue statistics", 32, OFPC_QUEUE_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_PORT_BLOCKED", "Switch will block looping ports", 32, OFPC_PORT_BLOCKED);
+    BITMAP_PART("ofp_capabilities.RESERVED", "Reserved", 32, 0xfffffe90);
 
     // ofp_config_flags
-    this->mFM.createField("ofp_config_flags.OFPC_FRAG_DROP", "Drop fragments", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_FRAG_DROP);
-    this->mFM.createField("ofp_config_flags.OFPC_FRAG_REASM", "Reassemble (only if OFPC_IP_REASM set)", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_FRAG_REASM);
-    this->mFM.createField("ofp_config_flags.OFPC_INVALID_TTL_TO_CONTROLLER", "Send packets with invalid TTL to the controller", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPC_INVALID_TTL_TO_CONTROLLER);
-    this->mFM.createField("ofp_config_flags.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xfffffff8);
+    BITMAP_PART("ofp_config_flags.OFPC_FRAG_DROP", "Drop fragments", 16, OFPC_FRAG_DROP);
+    BITMAP_PART("ofp_config_flags.OFPC_FRAG_REASM", "Reassemble (only if OFPC_IP_REASM set)", 16, OFPC_FRAG_REASM);
+    BITMAP_PART("ofp_config_flags.OFPC_INVALID_TTL_TO_CONTROLLER", "Send packets with invalid TTL to the controller", 16, OFPC_INVALID_TTL_TO_CONTROLLER);
+    BITMAP_PART("ofp_config_flags.RESERVED", "Reserved", 16, 0xfff8);
 
     // ofp_table_config
-    this->mFM.createField("ofp_table_config.OFPTC_TABLE_MISS_CONTINUE", "Continue to the next table in the pipeline (OpenFlow 1.0 behavior)", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPTC_TABLE_MISS_CONTINUE);
-    this->mFM.createField("ofp_table_config.OFPTC_TABLE_MISS_DROP", "Drop the packet", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPTC_TABLE_MISS_DROP);
-    this->mFM.createField("ofp_table_config.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xfffffffc);
+    BITMAP_PART("ofp_table_config.OFPTC_TABLE_MISS_CONTINUE", "Continue to the next table in the pipeline (OpenFlow 1.0 behavior)", 32, OFPTC_TABLE_MISS_CONTINUE);
+    BITMAP_PART("ofp_table_config.OFPTC_TABLE_MISS_DROP", "Drop the packet", 32, OFPTC_TABLE_MISS_DROP);
+    BITMAP_PART("ofp_table_config.RESERVED", "Reserved", 32, 0xfffffffc);
 
     // ofp_flow_mod_flags
-    this->mFM.createField("ofp_flow_mod_flags.OFPFF_SEND_FLOW_REM", "Send flow removed message when flow expires or is deleted", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPFF_SEND_FLOW_REM);
-    this->mFM.createField("ofp_flow_mod_flags.OFPFF_CHECK_OVERLAP", "Check for overlapping entries first", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPFF_CHECK_OVERLAP);
-    this->mFM.createField("ofp_flow_mod_flags.OFPFF_RESET_COUNTS", "Reset flow packet and byte counts", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPFF_RESET_COUNTS);
-    this->mFM.createField("ofp_flow_mod_flags.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xfffffff8);
+    BITMAP_PART("ofp_flow_mod_flags.OFPFF_SEND_FLOW_REM", "Send flow removed message when flow expires or is deleted", 16, OFPFF_SEND_FLOW_REM);
+    BITMAP_PART("ofp_flow_mod_flags.OFPFF_CHECK_OVERLAP", "Check for overlapping entries first", 16, OFPFF_CHECK_OVERLAP);
+    BITMAP_PART("ofp_flow_mod_flags.OFPFF_RESET_COUNTS", "Reset flow packet and byte counts", 16, OFPFF_RESET_COUNTS);
+    BITMAP_PART("ofp_flow_mod_flags.RESERVED", "Reserved", 16, 0xfff8);
 
     // ofp_stats_reply_flags
-    this->mFM.createField("ofp_stats_reply_flags.OFPSF_REPLY_MORE", "More replies to follow", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPSF_REPLY_MORE);
-    this->mFM.createField("ofp_stats_reply_flags.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xfffffffe);
+    BITMAP_PART("ofp_stats_reply_flags.OFPSF_REPLY_MORE", "More replies to follow", 16, OFPSF_REPLY_MORE);
+    BITMAP_PART("ofp_stats_reply_flags.RESERVED", "Reserved", 16, 0xfffe);
 
     // ofp_group_capabilities
-    this->mFM.createField("ofp_group_capabilities.OFPGFC_SELECT_WEIGHT", "Support weight for select groups", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPGFC_SELECT_WEIGHT);
-    this->mFM.createField("ofp_group_capabilities.OFPGFC_SELECT_LIVENESS", "Support liveness for select groups", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPGFC_SELECT_LIVENESS);
-    this->mFM.createField("ofp_group_capabilities.OFPGFC_CHAINING", "Support chaining groups", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPGFC_CHAINING);
-    this->mFM.createField("ofp_group_capabilities.OFPGFC_CHAINING_CHECKS", "Check chaining for loops and delete", FT_BOOLEAN, 32, TFS(&tfs_set_notset), OFPGFC_CHAINING_CHECKS);
-    this->mFM.createField("ofp_group_capabilities.RESERVED", "Reserved", FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0xfffffff0);
+    BITMAP_PART("ofp_group_capabilities.OFPGFC_SELECT_WEIGHT", "Support weight for select groups", 32, OFPGFC_SELECT_WEIGHT);
+    BITMAP_PART("ofp_group_capabilities.OFPGFC_SELECT_LIVENESS", "Support liveness for select groups", 32, OFPGFC_SELECT_LIVENESS);
+    BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING", "Support chaining groups", 32, OFPGFC_CHAINING);
+    BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING_CHECKS", "Check chaining for loops and delete", 32, OFPGFC_CHAINING_CHECKS);
+    BITMAP_PART("ofp_group_capabilities.RESERVED", "Reserved", 32, 0xfffffff0);
 }
-   
+
 }

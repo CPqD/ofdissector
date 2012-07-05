@@ -20,7 +20,8 @@ class Enum:
                 current.add_masked_bit(bit)
             except IndexError: # Ignore unshifted things
                 return
-            self.lines.append("this->mFM.createField(\"{0}.{1}\", \"{2}\", FT_BOOLEAN, 32, TFS(&tfs_set_notset), {1});".format(self.name, field, desc));
+            
+            self.lines.append("BITMAP_PART(\"{0}.{1}\", \"{2}\", {3}, {1});".format(self.name, field, desc, self.length, field));
         else:
             self.lines.append("TYPE_ARRAY_ADD({0}, {1}, \"{2} - {3}\");".format(self.name, field, desc, field))
 
@@ -39,7 +40,7 @@ class Enum:
             s += "TYPE_ARRAY(%s);\n" % self.name
         s += "\n".join(self.lines)
         if self.bitmap:
-            s += "\nthis->mFM.createField(\"{0}.RESERVED\", \"Reserved\", FT_BOOLEAN, 32, TFS(&tfs_set_notset), {1});".format(self.name, self.get_reserved())
+            s += "\nBITMAP_PART(\"{0}.RESERVED\", \"Reserved\", {1}, {2});".format(self.name, self.length, self.get_reserved())
         return s
 
 f = open(OFSPEC, "r")
@@ -52,10 +53,12 @@ for row in lines:
     if len(row) == 1:
         name = row[0]
         bitmap = False
-        if (name[-1] == "*"):
-            name = name[:-1]
+        length = 0
+        if ("*" in name):
+            name, length = name.split("*")
             bitmap = True
-        enum = Enum(name, bitmap)
+            length = int(length)
+        enum = Enum(name, bitmap, length)
         enums.append(enum)
         continue
 

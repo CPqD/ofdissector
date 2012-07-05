@@ -16,7 +16,7 @@ OFPT_PACKET_OUT / 13 / Packet out (CSM)
 OFPT_FLOW_MOD / 14 / Flow mod (CSM)
 OFPT_GROUP_MOD / 15 / Group mod (CSM)
 OFPT_PORT_MOD / 16 / Port mod (CSM)
-OFPT_TABLE_MOD / 17 / Table mod(CSM)
+OFPT_TABLE_MOD / 17 / Table mod (CSM)
 OFPT_STATS_REQUEST / 18 / Stats request (CSM)
 OFPT_STATS_REPLY / 19 / Stats reply (CSM)
 OFPT_BARRIER_REQUEST / 20 / Barrier request (CSM)
@@ -26,13 +26,13 @@ OFPT_QUEUE_GET_CONFIG_REPLY / 23 / Queue get config reply (CSM)
 OFPT_ROLE_REQUEST / 24 / Role request (CSM)
 OFPT_ROLE_REPLY / 25 / Role reply (CSM)
 
-ofp_port_config*
+ofp_port_config*32
 OFPPC_PORT_DOWN / 1 << 0 / Port is administratively down
 OFPPC_NO_RECV / 1 << 2 / Drop all packets received by port
 OFPPC_NO_FWD / 1 << 5 / Drop packets forwarded to port
 OFPPC_NO_PACKET_IN / 1 << 6 / Do not send packet-in msgs for port
 
-ofp_port_state*
+ofp_port_state*32
 OFPPS_LINK_DOWN / 1 << 0 / No physical link present
 OFPPS_BLOCKED / 1 << 1 / Port is blocked
 OFPPS_LIVE / 1 << 2 / Live for Fast Failover Group
@@ -48,7 +48,7 @@ OFPP_CONTROLLER / 0xfffffffd / Send to controller
 OFPP_LOCAL / 0xfffffffe / Local openflow "port"
 OFPP_ANY / 0xffffffff / Any port. For flow mod (delete) and flow stats requests only
 
-ofp_port_features*
+ofp_port_features*32
 OFPPF_10MB_HD / 1 << 0 / 10 Mb half-duplex rate support
 OFPPF_10MB_FD / 1 << 1 / 10 Mb full-duplex rate support
 OFPPF_100MB_HD / 1 << 2 / 100 Mb half-duplex rate support
@@ -152,7 +152,7 @@ ofp_controller_max_len
 OFPCML_MAX / 0xffe5 / maximum max_len value which can be used to request a specific byte length
 OFPCML_NO_BUFFER / 0xffff / indicates that no buffering should be applied and the whole packet is to be sent to the controller
 
-ofp_capabilities*
+ofp_capabilities*32
 OFPC_FLOW_STATS / 1 << 0 / Flow statistics
 OFPC_TABLE_STATS / 1 << 1 / Table statistics
 OFPC_PORT_STATS / 1 << 2 / Port statistics
@@ -161,7 +161,7 @@ OFPC_IP_REASM / 1 << 5 / Can reassemble IP fragments
 OFPC_QUEUE_STATS / 1 << 6 / Queue statistics
 OFPC_PORT_BLOCKED / 1 << 8 / Switch will block looping ports
 
-ofp_config_flags*
+ofp_config_flags*16
 OFPC_FRAG_NORMAL / 0 / No special handling for fragments
 OFPC_FRAG_DROP / 1 << 0 / Drop fragments
 OFPC_FRAG_REASM / 1 << 1 / Reassemble (only if OFPC_IP_REASM set)
@@ -170,9 +170,9 @@ OFPC_INVALID_TTL_TO_CONTROLLER / 1 << 2 / Send packets with invalid TTL to the c
 
 ofp_table
 OFPTT_MAX / 0xfe / Last usable table number
-OFPTT_ALL / 0xff /* Wildcard table used for table config / flow stats and flow deletes
+OFPTT_ALL / 0xff / Wildcard table used for table config flow stats and flow deletes
 
-ofp_table_config*
+ofp_table_config*32
 OFPTC_TABLE_MISS_CONTROLLER / 0 / Send to controller
 OFPTC_TABLE_MISS_CONTINUE / 1 << 0 / Continue to the next table in the pipeline (OpenFlow 1.0 behavior)
 OFPTC_TABLE_MISS_DROP / 1 << 1 / Drop the packet
@@ -185,7 +185,7 @@ OFPFC_MODIFY_STRICT / 2 / Modify entry strictly matching wildcards and priority
 OFPFC_DELETE / 3 / Delete all matching flows
 OFPFC_DELETE_STRICT / 4 / Delete entry strictly matching wildcards and priority
 
-ofp_flow_mod_flags*
+ofp_flow_mod_flags*16
 OFPFF_SEND_FLOW_REM / 1 << 0 / Send flow removed message when flow expires or is deleted
 OFPFF_CHECK_OVERLAP / 1 << 1 / Check for overlapping entries first
 OFPFF_RESET_COUNTS / 1 << 2 / Reset flow packet and byte counts
@@ -206,7 +206,7 @@ OFPGT_SELECT / 1 / Select group
 OFPGT_INDIRECT / 2 / Indirect group
 OFPGT_FF / 3 / Fast failover group
 
-ofp_stats_reply_flags*
+ofp_stats_reply_flags*16
 OFPSF_REPLY_MORE / 1 << 0 / More replies to follow
 
 ofp_stats_types
@@ -221,7 +221,7 @@ OFPST_GROUP_DESC / 7 / Group description statistics
 OFPST_GROUP_FEATURES / 8 / Group features
 OFPST_EXPERIMENTER / 0xffff / Experimenter extension
 
-ofp_group_capabilities*
+ofp_group_capabilities*32
 OFPGFC_SELECT_WEIGHT / 1 << 0 / Support weight for select groups
 OFPGFC_SELECT_LIVENESS / 1 << 1 / Support liveness for select groups
 OFPGFC_CHAINING / 1 << 2 / Support chaining groups

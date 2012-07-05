@@ -696,15 +696,15 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
 
     switch (type) {
         case OFPAT_OUTPUT:
-            ADD_CHILD(tree, "ofp_action.output.port", 4);
-            ADD_CHILD(tree, "ofp_action.output.max_len", 2);
+            ADD_CHILD(tree, "ofp_action_output.port", 4);
+            ADD_CHILD(tree, "ofp_action_output.max_len", 2);
             ADD_CHILD(tree, "padding", 6);
             break;
         case OFPAT_COPY_TTL_OUT:
         case OFPAT_COPY_TTL_IN:
             ADD_CHILD(tree, "padding", 4);
         case OFPAT_SET_MPLS_TTL:
-            ADD_CHILD(tree, "ofp_action.set_mpls_ttl.ttl", 1);
+            ADD_CHILD(tree, "ofp_action_mpls_ttl.mpls_ttl", 1);
             ADD_CHILD(tree, "padding", 3);
             break;
         case OFPAT_DEC_NW_TTL:
@@ -713,21 +713,25 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
             break;
         case OFPAT_PUSH_VLAN:
         case OFPAT_PUSH_MPLS:
-            ADD_CHILD(tree, "ofp_action.push.ethertype", 2);
+            ADD_CHILD(tree, "ofp_action_push.ethertype", 2);
             ADD_CHILD(tree, "padding", 2);
             break;
         case OFPAT_POP_VLAN:
-        case OFPAT_POP_MPLS:
+            // Nothing to do here
             ADD_CHILD(tree, "padding", 4);
             break;
+        case OFPAT_POP_MPLS:
+            ADD_CHILD(tree, "ofp_action_pop_mpls.ethertype", 2);
+            ADD_CHILD(tree, "padding", 2);
+            break;
         case OFPAT_SET_QUEUE:
-            ADD_CHILD(tree, "ofp_action.set_queue.id", 4);
+            ADD_CHILD(tree, "ofp_action_set_queue.queue_id", 4);
             break;
         case OFPAT_GROUP:
-            ADD_CHILD(tree, "ofp_action.group.id", 4);
+            ADD_CHILD(tree, "ofp_action_group.group_id", 4);
             break;
         case OFPAT_SET_NW_TTL:
-            ADD_CHILD(tree, "ofp_action.set_ipv5_ttl.ttl", 1);
+            ADD_CHILD(tree, "ofp_action_nw_ttl.nw_ttl", 1);
             ADD_CHILD(tree, "padding", 3);
             break;
         case OFPAT_SET_FIELD:
@@ -736,7 +740,7 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
             ADD_CHILD(tree, "padding", OFP_ACTION_SET_FIELD_OXM_PADDING(oxm_len));
             break;
         case 0xFFFF: // EXPERIMENTER
-            ADD_CHILD(tree, "ofp_action.experimenter.id", 4);
+            ADD_CHILD(tree, "ofp_action_experimenter_header.experimenter", 4);
             break;
         default:
             CONSUME_BYTES(message_end - this->_offset);
@@ -854,17 +858,20 @@ void DissectorContext::setupFields() {
     FIELD("ofp_oxm.value-IPV4", "Value", FT_IPv4, BASE_NONE, NO_VALUES, NO_MASK);
     FIELD("ofp_oxm.mask", "Mask", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
 
-    // Actions
+    // ofp_action_*
     TREE_FIELD("ofp_action", "Action");
     FIELD("ofp_action.type", "Type", FT_UINT16, BASE_HEX, VALUES(ofp_action_type), NO_MASK);
     FIELD("ofp_action.len", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
-    FIELD("ofp_action.output.port", "Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
-    FIELD("ofp_action.output.max_len", "Max Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
-    FIELD("ofp_action.group.id", "Group ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
-    FIELD("ofp_action.set_queue.id", "Queue ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
-    FIELD("ofp_action.set_mpls_ttl.ttl", "MPLS TTL", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
-    FIELD("ofp_action.push.ethertype", "Ethertype", FT_UINT16, BASE_HEX, NO_VALUES, NO_MASK);
-    FIELD("ofp_action.experimenter.id", "ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_action_output.port", "Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action_output.max_len", "Max Length", FT_UINT16, BASE_DEC, VALUES(ofp_controller_max_len), NO_MASK);
+    FIELD("ofp_action_group.group_id", "Group ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action_set_queue.queue_id", "Queue ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action_mpls_ttl.mpls_ttl", "MPLS TTL", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action_nw_ttl.nw_ttl", "NW TTL", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_action_push.ethertype", "Ethertype", FT_UINT16, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_action_pop_mpls.ethertype", "Ethertype", FT_UINT16, BASE_HEX, NO_VALUES, NO_MASK);
+    // ofp_action_set_field is defined using ofp_oxm
+    FIELD("ofp_action_experimenter_header.experimenter", "Experimenter ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
 
     // Stats Request
     TREE_FIELD("statsrq", "Stats Request");

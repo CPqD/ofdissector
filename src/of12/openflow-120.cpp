@@ -8,7 +8,6 @@ Copyright (c) 2012 CPqD */
 - Implement ofp_flow_removed dissection
 - Finishing standardizing names and keys
 - Use macros wherever possible and prettier
-- Full code generation
 - Prettier OXM values and masks
 - Due to code generation, we can't show a default value for flag fields
   (i.e.: OFPC_FRAG_NORMAL and OFPTC_TABLE_MISS_CONTROLLER). Fix this.
@@ -68,29 +67,40 @@ void addValueString(GArray *array, guint32 value, const gchar *str) {
 }
 
 /* Create a tree structure for a given field in variable name */
-#define ADD_TREE(name, field) proto_tree* name = this->mFM.addSubtree(this->_curOFPSubtree, field, this->_tvb, this->_offset, this->_oflen - this->_offset)
+#define ADD_TREE(name, field) \
+    proto_tree* name = this->mFM.addSubtree(this->_curOFPSubtree, field, this->_tvb, this->_offset, this->_oflen - this->_offset)
 /* Create a subtree structure with a given parent and length in a variable name */
-#define ADD_SUBTREE(name, parent, field, length) proto_tree* name = this->mFM.addSubtree(parent, field, this->_tvb, this->_offset, length)
+#define ADD_SUBTREE(name, parent, field, length) \
+    proto_tree* name = this->mFM.addSubtree(parent, field, this->_tvb, this->_offset, length)
 
 /* Read values in network order */
-#define READ_UINT16(name) guint16 name = tvb_get_ntohs(this->_tvb, this->_offset);
-#define READ_UINT32(name) guint32 name = tvb_get_ntohl(this->_tvb, this->_offset);
+#define READ_UINT16(name) \
+    guint16 name = tvb_get_ntohs(this->_tvb, this->_offset);
+#define READ_UINT32(name) \
+    guint32 name = tvb_get_ntohl(this->_tvb, this->_offset);
 
 /* Adds fields to a tree */
-#define ADD_BOOLEAN(tree, field, length, bitmap) this->mFM.addBoolean(tree, field, this->_tvb, this->_offset, length, bitmap);
-#define ADD_CHILD(tree, field, length) this->mFM.addItem(tree, field, this->_tvb, this->_offset, length); this->_offset += length
-#define CONSUME_BYTES(length) this->_offset += length;
+#define ADD_BOOLEAN(tree, field, length, bitmap) \
+    this->mFM.addBoolean(tree, field, this->_tvb, this->_offset, length, bitmap);
+#define ADD_CHILD(tree, field, length) \
+    this->mFM.addItem(tree, field, this->_tvb, this->_offset, length); this->_offset += length
+#define CONSUME_BYTES(length) \
+    this->_offset += length;
 
 /*  Values based on type arrays and masks */
 #define VALUES(array) (void *) VALS(this->array->data)
 #define NO_VALUES NULL
 #define NO_MASK 0x0
 /* A tree field contains one or more children fields */
-#define TREE_FIELD(key, desc) this->mFM.createField(key, desc, FT_NONE, BASE_NONE, NO_VALUES, NO_MASK, true);
-#define FIELD(key, desc, type, base, values, mask) this->mFM.createField(key, desc, type, base, values, mask, false);
+#define TREE_FIELD(key, desc) \
+    this->mFM.createField(key, desc, FT_NONE, BASE_NONE, NO_VALUES, NO_MASK, true);
+#define FIELD(key, desc, type, base, values, mask) \
+    this->mFM.createField(key, desc, type, base, values, mask, false);
 /* A bitmap field is a tree containing several bitmap parts */
-#define BITMAP_FIELD(field, desc, type) this->mFM.createField(field, desc, type, BASE_HEX, NO_VALUES, NO_MASK, true);
-#define BITMAP_PART(field, desc, length, mask) this->mFM.createField(field, desc, FT_BOOLEAN, length, TFS(&tfs_set_notset), mask, false);
+#define BITMAP_FIELD(field, desc, type) \
+    this->mFM.createField(field, desc, type, BASE_HEX, NO_VALUES, NO_MASK, true);
+#define BITMAP_PART(field, desc, length, mask) \
+    this->mFM.createField(field, desc, FT_BOOLEAN, length, TFS(&tfs_set_notset), mask, false);
 
 namespace openflow_120 {
 
@@ -472,17 +482,14 @@ void DissectorContext::dissectGroupMod() {
     ADD_CHILD(tree, "padding", 1);
     ADD_CHILD(tree, "groupmod.groupid", 4);
 
-    try
-      {
-      while((this->_oflen - this->_offset) > 0)
-        {
-        this->dissectGroupBucket(tree);
+    try {
+        while((this->_oflen - this->_offset) > 0) {
+            this->dissectGroupBucket(tree);
         }
-      }
-    catch (const ZeroLenBucket &e)
-      {
-      return;
-      }
+    }
+    catch (const ZeroLenBucket &e) {
+        return;
+    }
 }
 
 void DissectorContext::dissect_ofp_table_mod() {
@@ -597,13 +604,26 @@ int DissectorContext::dissect_ofp_oxm_field(proto_tree *parent) {
     ADD_CHILD(tree, "ofp_oxm.oxm_hasmask", 1);
     ADD_CHILD(tree, "ofp_oxm.oxm_length", 1);
 
+    // Choose field type to display the formatted value
+    // TODO: add support for more types
+    std::string value_field;
+    switch (UNPACK_OXM_FIELD(header)) {
+        case OFPXMT_OFB_IPV4_SRC:
+        case OFPXMT_OFB_IPV4_DST:
+            value_field = "ofp_oxm.value-IPV4";
+            break;
+        default:
+            value_field = "ofp_oxm.value";
+            break;
+    }
+    
     // If we have a mask, the body is double its normal size
     if (UNPACK_OXM_HASMASK(header)) {
-        ADD_CHILD(tree, "ofp_oxm.value", length/2);
+        ADD_CHILD(tree, value_field, length/2);
         ADD_CHILD(tree, "ofp_oxm.mask", length/2);
     }
     else {
-        ADD_CHILD(tree, "ofp_oxm.value", length);
+        ADD_CHILD(tree, value_field, length);
     }
 
     // TODO: based on field type, use the proper format for value and mask
@@ -763,10 +783,10 @@ void DissectorContext::setupFields() {
 
     // Header
     TREE_FIELD("ofp_header", "Header");
-    FIELD("ofp_header.version", "Version", FT_UINT8, BASE_HEX, NO_VALUES, 0x0);
-    FIELD("ofp_header.type", "Type", FT_UINT8, BASE_DEC, VALUES(ofp_type), 0x0);
-    FIELD("ofp_header.length", "Length", FT_UINT8, BASE_DEC, NO_VALUES, 0x0);
-    FIELD("ofp_header.xid", "Transaction ID", FT_UINT32, BASE_DEC, NO_VALUES, 0x0);
+    FIELD("ofp_header.version", "Version", FT_UINT8, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_header.type", "Type", FT_UINT8, BASE_DEC, VALUES(ofp_type), NO_MASK);
+    FIELD("ofp_header.length", "Length", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_header.xid", "Transaction ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
 
     // Echo Request/Reply
     FIELD("echo", "Echo Data", FT_STRING, BASE_NONE, NO_VALUES, NO_MASK);
@@ -831,6 +851,7 @@ void DissectorContext::setupFields() {
     FIELD("ofp_oxm.oxm_hasmask", "Has mask", FT_BOOLEAN, 1, TFS(&tfs_yes_no), 0x01);
     FIELD("ofp_oxm.oxm_length", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_oxm.value", "Value", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+    FIELD("ofp_oxm.value-IPV4", "Value", FT_IPv4, BASE_NONE, NO_VALUES, NO_MASK);
     FIELD("ofp_oxm.mask", "Mask", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
 
     // Actions

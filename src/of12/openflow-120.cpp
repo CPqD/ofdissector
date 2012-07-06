@@ -838,7 +838,7 @@ void DissectorContext::setupFields() {
     // Switch Config Reply
     TREE_FIELD("ofp_switch_config", "Switch Configuration");
     BITMAP_FIELD("ofp_switch_config.flags", "Flags", FT_UINT16);
-    FIELD("ofp_switch_config.miss_send_len", "Max new flow bytes to controller", FT_UINT16, BASE_DEC, VALUES(ofp_controller_max_len), NO_MASK);
+    FIELD("ofp_switch_config.miss_send_len", "Max new flow bytes to controller", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
 
     // Flow Match
     TREE_FIELD("ofp_match", "Match");
@@ -860,7 +860,7 @@ void DissectorContext::setupFields() {
     FIELD("ofp_action.type", "Type", FT_UINT16, BASE_HEX, VALUES(ofp_action_type), NO_MASK);
     FIELD("ofp_action.len", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_action_output.port", "Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
-    FIELD("ofp_action_output.max_len", "Max Length", FT_UINT16, BASE_DEC, VALUES(ofp_controller_max_len), NO_MASK);
+    FIELD("ofp_action_output.max_len", "Max Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_action_group.group_id", "Group ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_action_set_queue.queue_id", "Queue ID", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_action_mpls_ttl.mpls_ttl", "MPLS TTL", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);

@@ -11,6 +11,9 @@ Copyright (c) 2012 CPqD */
 - Prettier OXM values and masks
 - Due to code generation, we can't show a default value for flag fields
   (i.e.: OFPC_FRAG_NORMAL and OFPTC_TABLE_MISS_CONTROLLER). Fix this.
+- Some enums (e.g.: ofp_controller_max_len) have few values at the end of their
+  ranges. This causes a segfault when some values are used and invalid strings
+  with some others. Investigate this and try to solve it.
 */
 
 #define OPENFLOW_INTERNAL
@@ -138,7 +141,7 @@ guint DissectorContext::getMessageLen(packet_info *pinfo, tvbuff_t *tvb, int off
     // 0-7    version
     // 8-15   type
     // 16-31  length
-    return (guint) tvb_get_ntohs(tvb, offset+2);
+    return (guint) tvb_get_ntohs(tvb, offset + 2);
 }
 
 void init(int proto_openflow) {
@@ -167,8 +170,7 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
     this->_oflen = tvb_get_ntohs(this->_tvb, 2);
 
     col_clear(pinfo->cinfo, COL_INFO);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s",
-    val_to_str(type, (value_string*) this->ofp_type->data, "Unknown Type (0x%02x)"));
+    col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str(type, (value_string*) this->ofp_type->data, "Unknown Type (0x%02x)"));
 
     if (this->_tree) {
         this->_curOFPSubtree = this->mFM.addSubtree(tree, "data", this->_tvb, 0, -1);

@@ -75,17 +75,17 @@ void addValueString(GArray *array, guint32 value, const gchar *str) {
 
 /* Read values in network order */
 #define READ_UINT16(name) \
-    guint16 name = tvb_get_ntohs(this->_tvb, this->_offset);
+    guint16 name = tvb_get_ntohs(this->_tvb, this->_offset)
 #define READ_UINT32(name) \
-    guint32 name = tvb_get_ntohl(this->_tvb, this->_offset);
+    guint32 name = tvb_get_ntohl(this->_tvb, this->_offset)
 
 /* Adds fields to a tree */
 #define ADD_BOOLEAN(tree, field, length, bitmap) \
-    this->mFM.addBoolean(tree, field, this->_tvb, this->_offset, length, bitmap);
+    this->mFM.addBoolean(tree, field, this->_tvb, this->_offset, length, bitmap)
 #define ADD_CHILD(tree, field, length) \
     this->mFM.addItem(tree, field, this->_tvb, this->_offset, length); this->_offset += length
 #define CONSUME_BYTES(length) \
-    this->_offset += length;
+    this->_offset += length
 
 /*  Values based on type arrays and masks */
 #define VALUES(array) (void *) VALS(this->array->data)
@@ -93,14 +93,14 @@ void addValueString(GArray *array, guint32 value, const gchar *str) {
 #define NO_MASK 0x0
 /* A tree field contains one or more children fields */
 #define TREE_FIELD(key, desc) \
-    this->mFM.createField(key, desc, FT_NONE, BASE_NONE, NO_VALUES, NO_MASK, true);
+    this->mFM.createField(key, desc, FT_NONE, BASE_NONE, NO_VALUES, NO_MASK, true)
 #define FIELD(key, desc, type, base, values, mask) \
-    this->mFM.createField(key, desc, type, base, values, mask, false);
+    this->mFM.createField(key, desc, type, base, values, mask, false)
 /* A bitmap field is a tree containing several bitmap parts */
 #define BITMAP_FIELD(field, desc, type) \
-    this->mFM.createField(field, desc, type, BASE_HEX, NO_VALUES, NO_MASK, true);
+    this->mFM.createField(field, desc, type, BASE_HEX, NO_VALUES, NO_MASK, true)
 #define BITMAP_PART(field, desc, length, mask) \
-    this->mFM.createField(field, desc, FT_BOOLEAN, length, TFS(&tfs_set_notset), mask, false);
+    this->mFM.createField(field, desc, FT_BOOLEAN, length, TFS(&tfs_set_notset), mask, false)
 
 namespace openflow_120 {
 
@@ -433,8 +433,9 @@ void DissectorContext::dissect_ofp_flow_mod() {
     this->dissect_ofp_match(match_tree);
 
     try {
-        while ((this->_oflen - this->_offset) > 0)
+        while ((this->_oflen - this->_offset) > 0) {
             this->dissect_ofp_instruction(tree);
+        }
     }
     catch (const ZeroLenInstruction &e) {
         return;
@@ -577,11 +578,18 @@ void DissectorContext::dissect_ofp_match (proto_tree *tree) {
     READ_UINT16(length);
     ADD_CHILD(tree, "ofp_match.len", 2);
 
-    dissect_ofp_oxm(tree, length);
+    /* If the length is 8, we have an empty ofp_match, meaning that oxm_fields
+    filled with padding bits. Otherwise, we have valid OXM fields. */
+    if (length == 8) {
+        ADD_CHILD(tree, "padding", 4);
+    }
+    else {
+        dissect_ofp_oxm(tree, length);
+    }
 }
 
 
-void DissectorContext::dissect_ofp_oxm(proto_tree *parent, guint32 length){
+void DissectorContext::dissect_ofp_oxm(proto_tree *parent, guint32 length) {
     int end = this->_offset + (length - 4);
     // Dissect each field
     while (this->_offset < end) {

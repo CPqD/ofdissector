@@ -1,7 +1,8 @@
 ofdissector
 ===========
 
-Wireshark dissectors for OpenFlow 1.1 and 1.2
+Wireshark dissectors for OpenFlow 1.1 and 1.2.
+It's based on [ng-of-dissector] by Nick Bastin.
 
 Build/Install
 =============
@@ -53,7 +54,7 @@ Test
 
     $ cd test
     $ make
-    $ ./server (will stay listening forever)
+    $ ./server (will stay listening forever on port 6633)
     
 2) Go to Wireshark and start capture on `lo`
 
@@ -63,3 +64,5 @@ Test
 
 Several messages should appear. You can customize them in main function in 
 client.c, and then repeat the steps above to see the results.
+
+[ng-of-dissector]: https://bitbucket.org/barnstorm/ng-of-dissector

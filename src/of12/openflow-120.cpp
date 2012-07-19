@@ -7,7 +7,7 @@ Copyright (c) 2012 CPqD */
 - Implement ofp_queue_get_config_request/reply dissections
 - Implement ofp_flow_removed dissection
 - Finishing standardizing names and keys
-- Use macros wherever possible and prettier
+- Change FieldManager API and get rid of most macros.
 - Prettier OXM values and masks
 - Due to code generation, we can't show a default value for flag fields
   (i.e.: OFPC_FRAG_NORMAL and OFPTC_TABLE_MISS_CONTROLLER). Fix this.
@@ -54,6 +54,12 @@ class ZeroLenBucket { };
 #define UNPACK_OXM_FIELD(header) ((header >> 9) & 0x0000007F)
 #define UNPACK_OXM_HASMASK(header) ((header >> 8) & 0x00000001)
 #define UNPACK_OXM_LENGTH(header) (header & 0x000000FF)
+
+
+/* WARNING: Yep, macros can be evil when used this way, but they are here 
+because they simplified the development in this case. In the future, we will 
+try to get rid of them through a different API in FieldManager and new 
+functions and methods. */
 
 /* Create a type array, used to map codes to values */
 #define TYPE_ARRAY(name) this->name = g_array_new(FALSE, FALSE, sizeof (value_string))

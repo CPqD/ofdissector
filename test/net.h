@@ -63,8 +63,7 @@ ntoh64(uint64_t n) {
 }
 
 
-void Error(const char *msg)
-{
+void error(const char *msg) {
     perror(msg);
-    exit(0);
+    exit(EXIT_FAILURE);
 }

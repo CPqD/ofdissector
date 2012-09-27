@@ -775,8 +775,8 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
 
     guint32 end, oxm_len;
 
-    if (len == 0)
-      { throw ZeroLenAction(); }
+//    if (len == 0)
+//      { throw ZeroLenAction(); }
 
     guint32 message_end = this->_offset + len;
 

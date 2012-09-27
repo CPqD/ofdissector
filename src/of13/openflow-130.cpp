@@ -1175,6 +1175,7 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_WRITE_ACTIONS, "Write the action(s) onto the datapath action set - OFPIT_WRITE_ACTIONS");
     TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_APPLY_ACTIONS, "Applies the action(s) immediately - OFPIT_APPLY_ACTIONS");
     TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_CLEAR_ACTIONS, "Clears all actions from the datapath action set - OFPIT_CLEAR_ACTIONS");
+    TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_METER, "Apply meter (rate limiter) - OFPIT_METER");
     TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_EXPERIMENTER, "Experimenter instruction - OFPIT_EXPERIMENTER");
 
     // ofp_action_type

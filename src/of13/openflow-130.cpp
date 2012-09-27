@@ -148,7 +148,7 @@ void init(int proto_openflow) {
     DissectorContext::getInstance(proto_openflow);
 }
 
-DissectorContext::DissectorContext (int proto_openflow) : mProtoOpenflow(proto_openflow), mFM(proto_openflow, "of12") {
+DissectorContext::DissectorContext (int proto_openflow) : mProtoOpenflow(proto_openflow), mFM(proto_openflow, "of13") {
     Context = this;
 
     this->setupCodes();

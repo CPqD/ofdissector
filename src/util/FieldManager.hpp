@@ -8,6 +8,8 @@
 #include <string>
 #include <map>
 
+void addValueString(GArray *array, guint32 value, const gchar *str);
+
 /*! Class to manage fields for treeview display and searching in Wireshark GUI.
 */
 class FieldManager {

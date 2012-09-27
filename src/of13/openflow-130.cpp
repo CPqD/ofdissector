@@ -20,9 +20,12 @@ Copyright (c) 2012 CPqD */
 
 #include <string.h>
 #include <iostream>
-#include <of12/openflow-120.hpp>
+#include <of13/openflow-130.hpp>
 #include <openflow-common.hpp>
-#include "openflow/of12.h"
+#include "openflow/of13.h"
+
+
+#include <stdio.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -56,9 +59,9 @@ class ZeroLenBucket { };
 #define UNPACK_OXM_LENGTH(header) (header & 0x000000FF)
 
 
-/* WARNING: Yep, macros can be evil when used this way, but they are here 
-because they simplified the development in this case. In the future, we will 
-try to get rid of them through a different API in FieldManager and new 
+/* WARNING: Yep, macros can be evil when used this way, but they are here
+because they simplified the development in this case. In the future, we will
+try to get rid of them through a different API in FieldManager and new
 functions and methods. */
 
 /* Create a type array, used to map codes to values */
@@ -102,7 +105,7 @@ functions and methods. */
 #define BITMAP_PART(field, desc, length, mask) \
     this->mFM.createField(field, desc, FT_BOOLEAN, length, TFS(&tfs_set_notset), mask, false)
 
-namespace openflow_120 {
+namespace openflow_130 {
 
 DissectorContext * DissectorContext::mSingle = NULL;
 DissectorContext * Context;
@@ -245,12 +248,12 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
                     this->dissect_ofp_table_mod();
                     break;
 
-                case OFPT_STATS_REQUEST:
-                    this->dissectStatsRequest();
+                case OFPT_MULTIPART_REQUEST:
+                    this->dissectMultipartRequest();
                     break;
 
-                case OFPT_STATS_REPLY:
-                    this->dissectStatsReply();
+                case OFPT_MULTIPART_REPLY:
+                    this->dissectMultipartReply();
                     break;
 
                 case OFPT_BARRIER_REQUEST:
@@ -324,7 +327,7 @@ void DissectorContext::dissect_ofp_switch_features() {
     ADD_CHILD(tree, "ofp_switch_features.n_buffers", 4);
     ADD_CHILD(tree, "ofp_switch_features.n_tables", 1);
     ADD_CHILD(tree, "padding", 3);
-    
+
     READ_UINT32(capabilities);
     ADD_SUBTREE(capabilities_tree, tree, "ofp_switch_features.capabilities", 4);
     ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.RESERVED", 4, capabilities);
@@ -366,33 +369,95 @@ void DissectorContext::dissect_ofp_switch_config() {
     ADD_CHILD(tree, "ofp_switch_config.miss_send_len", 2);
 }
 
-void DissectorContext::dissectStatsRequest() {
-    ADD_TREE(tree, "statsrq");
+void DissectorContext::dissectMultipartRequest() {
+    ADD_TREE(tree, "ofp_multipart_request");
 
-    ADD_CHILD(tree, "statsrq.type", 2);
-    ADD_CHILD(tree, "statsrq.flags", 2);
-    ADD_CHILD(tree, "padding", 4);
-    ADD_CHILD(tree, "statsrq.body", this->_oflen - this->_offset);
-}
-
-void DissectorContext::dissectStatsReply() {
-    ADD_TREE(tree, "ofp_stats_reply");
-
-    ADD_CHILD(tree, "ofp_stats_reply.type", 2);
+    ADD_CHILD(tree, "ofp_multipart_request.type", 2);
 
     READ_UINT16(flags);
-    ADD_SUBTREE(flags_tree, tree, "ofp_flow_mod.flags", 2);
-    ADD_BOOLEAN(flags_tree, "ofp_stats_reply_flags.RESERVED", 2, flags);
-    ADD_BOOLEAN(flags_tree, "ofp_stats_reply_flags.OFPSF_REPLY_MORE", 2, flags);
+    ADD_SUBTREE(flags_tree, tree, "ofp_multipart_request.flags", 2);
+    ADD_BOOLEAN(flags_tree, "ofp_multipart_request_flags.OFPMPF_REQ_MORE", 2, flags);
     CONSUME_BYTES(2);
 
     ADD_CHILD(tree, "padding", 4);
-    // TODO: include this check in every case we have a body?
-    if (this->_oflen <= this->_offset)
-        return;
 
-    // TODO: parse body depending on stats type
-    ADD_CHILD(tree, "ofp_stats_reply.body", this->_oflen - this->_offset);
+    if (this->_offset < this->_oflen)
+        ADD_CHILD(tree, "ofp_multipart_request.body", this->_oflen - this->_offset);
+}
+
+void DissectorContext::dissect_ofp_table_feature_prop(proto_tree* parent) {
+    READ_UINT16(type);
+    this->_offset += 2; // read ahead
+    READ_UINT16(length);
+    this->_offset -= 2;
+
+    if (type == OFPTFPT_INSTRUCTIONS || type == OFPTFPT_INSTRUCTIONS_MISS) {
+        ADD_SUBTREE(tree, parent, "ofp_table_feature_prop_instructions", length + OFP_MATCH_OXM_PADDING(length));
+        ADD_CHILD(tree, "ofp_table_feature_prop.type", 2);
+        ADD_CHILD(tree, "ofp_table_feature_prop.length", 2);
+
+        guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_instructions) + length;
+        while (this->_offset < end)
+            this->dissect_ofp_instruction(tree);
+
+        ADD_CHILD(tree, "padding", OFP_MATCH_OXM_PADDING(length));
+    }
+    else if (type == OFPTFPT_NEXT_TABLES || type == OFPTFPT_NEXT_TABLES_MISS) {
+        ADD_SUBTREE(tree, parent, "ofp_table_feature_prop_next_tables", length + OFP_MATCH_OXM_PADDING(length));
+        ADD_CHILD(tree, "ofp_table_feature_prop.type", 2);
+        ADD_CHILD(tree, "ofp_table_feature_prop.length", 2);
+
+        guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_next_tables) + length;
+        while (this->_offset < end) {
+            ADD_CHILD(tree, "ofp_table_feature_prop_next_tables.next_table_ids", 1);
+        }
+        
+        ADD_CHILD(tree, "padding", OFP_MATCH_OXM_PADDING(length));
+    }
+    else {
+        CONSUME_BYTES(length + OFP_MATCH_OXM_PADDING(length)); // We don't know what to do, discard
+    }
+}
+
+void DissectorContext::dissect_ofp_table_features(proto_tree* parent) {
+    READ_UINT16(length);
+    ADD_SUBTREE(tree, parent, "ofp_table_features", length);
+    ADD_CHILD(tree, "ofp_table_features.length", 2);
+    ADD_CHILD(tree, "ofp_table_features.table_id", 1);
+    ADD_CHILD(tree, "padding", 5);
+    ADD_CHILD(tree, "ofp_table_features.name", OFP_MAX_TABLE_NAME_LEN);
+    ADD_CHILD(tree, "ofp_table_features.metadata_match", 8);
+    ADD_CHILD(tree, "ofp_table_features.metadata_write", 8);
+    ADD_CHILD(tree, "ofp_table_features.config", 4); // TODO: flags
+    ADD_CHILD(tree, "ofp_table_features.max_entries", 4);
+
+    guint32 end = this->_offset - sizeof(struct ofp_table_features) + length;
+    while (this->_offset < end) {
+        dissect_ofp_table_feature_prop(tree);
+    }
+}
+
+void DissectorContext::dissectMultipartReply() {
+    ADD_TREE(tree, "ofp_multipart_reply");
+
+    READ_UINT16(type);
+    ADD_CHILD(tree, "ofp_multipart_reply.type", 2);
+
+    READ_UINT16(flags);
+    ADD_SUBTREE(flags_tree, tree, "ofp_multipart_reply.flags", 2);
+    ADD_BOOLEAN(flags_tree, "ofp_multipart_reply_flags.OFPMPF_REPLY_MORE", 2, flags);
+    CONSUME_BYTES(2);
+
+    ADD_CHILD(tree, "padding", 4);
+
+    switch (type) {
+        case OFPMP_TABLE_FEATURES:
+            this->dissect_ofp_table_features(tree);
+            break;
+        default:
+            ADD_CHILD(tree, "ofp_multipart_reply.body", this->_oflen - this->_offset);
+            break;
+    }
 }
 
 void DissectorContext::dissect_ofp_portStatus() {
@@ -418,7 +483,7 @@ void DissectorContext::dissect_ofp_flow_mod() {
     ADD_CHILD(tree, "ofp_flow_mod.buffer_id", 4);
     ADD_CHILD(tree, "ofp_flow_mod.out_port", 4);
     ADD_CHILD(tree, "ofp_flow_mod.out_group", 4);
-    
+
     READ_UINT16(flags);
     ADD_SUBTREE(flags_tree, tree, "ofp_flow_mod.flags", 2);
     ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.RESERVED", 2, flags);
@@ -570,7 +635,7 @@ void DissectorContext::dissectOFPPF (proto_tree *tree) {
     CONSUME_BYTES(4);
 }
 
-void DissectorContext::dissect_ofp_match (proto_tree *tree) {
+void DissectorContext::dissect_ofp_match(proto_tree *tree) {
     /*FIXME: We should care if the type isn't OXM (0x01) */
 
     ADD_CHILD(tree, "ofp_match.type", 2);
@@ -623,7 +688,7 @@ int DissectorContext::dissect_ofp_oxm_field(proto_tree *parent) {
             value_field = "ofp_oxm.value";
             break;
     }
-    
+
     // If we have a mask, the body is double its normal size
     if (UNPACK_OXM_HASMASK(header)) {
         ADD_CHILD(tree, value_field, length/2);
@@ -643,7 +708,7 @@ void DissectorContext::dissect_ofp_instruction(proto_tree* parent) {
     this->_offset += 2; // read ahead
     READ_UINT16(len);
     this->_offset -= 2;
-    
+
     guint32 message_end = this->_offset + len;
 
     if (len == 0) {
@@ -653,6 +718,10 @@ void DissectorContext::dissect_ofp_instruction(proto_tree* parent) {
     ADD_SUBTREE(tree, parent, "ofp_instruction", len);
     ADD_CHILD(tree, "ofp_instruction.type", 2);
     ADD_CHILD(tree, "ofp_instruction.len", 2);
+
+    // If we have just a header, stop here
+    if (len == 4)
+        return;
 
     switch (type) {
         case OFPIT_GOTO_TABLE:
@@ -689,7 +758,7 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
     this->_offset += 2; // read ahead
     READ_UINT16(len);
     this->_offset -= 2;
-    
+
     guint32 end, oxm_len;
 
     if (len == 0)
@@ -754,9 +823,9 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
 
 void DissectorContext::dissectGroupBucket(proto_tree* parent) {
     READ_UINT16(len);
-    
+
     if (len == 0)
-        throw ZeroLenBucket(); 
+        throw ZeroLenBucket();
 
     guint32 message_end = this->_offset + len;
 
@@ -784,7 +853,6 @@ void DissectorContext::dissect_ofp_role_request() {
     ADD_CHILD(tree, "ofp_role_request.generation_id", 8);
 }
 
-// Boring part
 void DissectorContext::setupFields() {
     TREE_FIELD("data", "Openflow Protocol");
     FIELD("padding", "Padding", FT_NONE, BASE_NONE, NO_VALUES, NO_MASK);
@@ -877,18 +945,34 @@ void DissectorContext::setupFields() {
     // ofp_action_set_field is defined using ofp_oxm
     FIELD("ofp_action_experimenter_header.experimenter", "Experimenter ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
 
-    // Stats Request
-    TREE_FIELD("statsrq", "Stats Request");
-    FIELD("statsrq.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_stats_types), NO_MASK);
-    FIELD("statsrq.flags", "Flags", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
-    BITMAP_FIELD("ofp_flow_mod.flags", "Flags", FT_UINT16);
-    FIELD("statsrq.body", "Body", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+    // ofp_multipart_request
+    TREE_FIELD("ofp_multipart_request", "Multipart request");
+    FIELD("ofp_multipart_request.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_multipart_types), NO_MASK);
+    BITMAP_FIELD("ofp_multipart_request.flags", "Flags", FT_UINT16);
+    FIELD("ofp_multipart_request.body", "Body", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
 
-    // ofp_stats_reply
-    TREE_FIELD("ofp_stats_reply", "Stats Reply");
-    FIELD("ofp_stats_reply.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_stats_types), NO_MASK);
-    BITMAP_FIELD("ofp_stats_reply.flags", "Flags", FT_UINT16);
-    FIELD("ofp_stats_reply.body", "Body", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+    // ofp_multipart_reply
+    TREE_FIELD("ofp_multipart_reply", "Multipart reply");
+    FIELD("ofp_multipart_reply.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_multipart_types), NO_MASK);
+    BITMAP_FIELD("ofp_multipart_reply.flags", "Flags", FT_UINT16);
+    FIELD("ofp_multipart_reply.body", "Body", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
+
+    // ofp_table_features
+    TREE_FIELD("ofp_table_features", "Table features");
+    FIELD("ofp_table_features.length", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_table_features.table_id", "Table ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_table_features.name", "Name", FT_STRING, BASE_NONE, NO_VALUES, NO_MASK);
+    FIELD("ofp_table_features.metadata_match", "Metadata match", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_table_features.metadata_write", "Metadata write", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_table_features.config", "Config", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_table_features.max_entries", "Max entries", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+
+    // ofp_table_feature_prop
+    TREE_FIELD("ofp_table_feature_prop_instructions", "Instructions property");
+    TREE_FIELD("ofp_table_feature_prop_next_tables", "Next tables property");
+    FIELD("ofp_table_feature_prop.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_table_feature_prop_type), NO_MASK);
+    FIELD("ofp_table_feature_prop.length", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_table_feature_prop_next_tables.next_table_ids", "Next table ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
 
     // Port Status
     TREE_FIELD("pstatus", "Port Status");
@@ -979,14 +1063,18 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_type, OFPT_GROUP_MOD, "Group mod (CSM) - OFPT_GROUP_MOD");
     TYPE_ARRAY_ADD(ofp_type, OFPT_PORT_MOD, "Port mod (CSM) - OFPT_PORT_MOD");
     TYPE_ARRAY_ADD(ofp_type, OFPT_TABLE_MOD, "Table mod (CSM) - OFPT_TABLE_MOD");
-    TYPE_ARRAY_ADD(ofp_type, OFPT_STATS_REQUEST, "Stats request (CSM) - OFPT_STATS_REQUEST");
-    TYPE_ARRAY_ADD(ofp_type, OFPT_STATS_REPLY, "Stats reply (CSM) - OFPT_STATS_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_MULTIPART_REQUEST, "Multipart request (CSM) - OFPT_MULTIPART_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_MULTIPART_REPLY, "Multipart reply (CSM) - OFPT_MULTIPART_REPLY");
     TYPE_ARRAY_ADD(ofp_type, OFPT_BARRIER_REQUEST, "Barrier request (CSM) - OFPT_BARRIER_REQUEST");
     TYPE_ARRAY_ADD(ofp_type, OFPT_BARRIER_REPLY, "Stats reply (CSM) - OFPT_BARRIER_REPLY");
     TYPE_ARRAY_ADD(ofp_type, OFPT_QUEUE_GET_CONFIG_REQUEST, "Queue get config request (CSM) - OFPT_QUEUE_GET_CONFIG_REQUEST");
     TYPE_ARRAY_ADD(ofp_type, OFPT_QUEUE_GET_CONFIG_REPLY, "Queue get config reply (CSM) - OFPT_QUEUE_GET_CONFIG_REPLY");
     TYPE_ARRAY_ADD(ofp_type, OFPT_ROLE_REQUEST, "Role request (CSM) - OFPT_ROLE_REQUEST");
     TYPE_ARRAY_ADD(ofp_type, OFPT_ROLE_REPLY, "Role reply (CSM) - OFPT_ROLE_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_GET_ASYNC_REQUEST, "Async request (CSM) - OFPT_GET_ASYNC_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_GET_ASYNC_REPLY, "Async reply (CSM) - OFPT_GET_ASYNC_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_SET_ASYNC, "Set async (CSM) - OFPT_SET_ASYNC");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_METER_MOD, "Meter Mod (CSM) - OFPT_METER_MOD");
 
     // ofp_port_no
     TYPE_ARRAY(ofp_port_no);
@@ -1126,19 +1214,6 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_group_type, OFPGT_INDIRECT, "Indirect group - OFPGT_INDIRECT");
     TYPE_ARRAY_ADD(ofp_group_type, OFPGT_FF, "Fast failover group - OFPGT_FF");
 
-    // ofp_stats_types
-    TYPE_ARRAY(ofp_stats_types);
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_DESC, "Description of an OpenFlow switch - OFPST_DESC");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_FLOW, "Individual flow statistics - OFPST_FLOW");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_AGGREGATE, "Aggregate flow statistics - OFPST_AGGREGATE");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_TABLE, "Flow table statistics - OFPST_TABLE");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_PORT, "Port statistics - OFPST_PORT");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_QUEUE, "Queue statistics for a port - OFPST_QUEUE");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_GROUP, "Group counter statistics - OFPST_GROUP");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_GROUP_DESC, "Group description statistics - OFPST_GROUP_DESC");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_GROUP_FEATURES, "Group features - OFPST_GROUP_FEATURES");
-    TYPE_ARRAY_ADD(ofp_stats_types, OFPST_EXPERIMENTER, "Experimenter extension - OFPST_EXPERIMENTER");
-
     // ofp_controller_role
     TYPE_ARRAY(ofp_controller_role);
     TYPE_ARRAY_ADD(ofp_controller_role, OFPCR_ROLE_NOCHANGE, "Don’t change current role - OFPCR_ROLE_NOCHANGE");
@@ -1179,6 +1254,7 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_error_type, OFPET_QUEUE_OP_FAILED, "Queue operation failed - OFPET_QUEUE_OP_FAILED");
     TYPE_ARRAY_ADD(ofp_error_type, OFPET_SWITCH_CONFIG_FAILED, "Switch config request failed - OFPET_SWITCH_CONFIG_FAILED");
     TYPE_ARRAY_ADD(ofp_error_type, OFPET_ROLE_REQUEST_FAILED, "Controller Role request failed - OFPET_ROLE_REQUEST_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_METER_MOD_FAILED, "Error in meter - OFPET_METER_MOD_FAILED");
     TYPE_ARRAY_ADD(ofp_error_type, OFPET_EXPERIMENTER, "Experimenter error messages - OFPET_EXPERIMENTER");
 
     // ofp_hello_failed_code
@@ -1190,7 +1266,7 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY(ofp_bad_request_code);
     TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_VERSION, "ofp_header.version not supported - OFPBRC_BAD_VERSION");
     TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_TYPE, "ofp_header.type not supported - OFPBRC_BAD_TYPE");
-    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_STAT, "ofp_stats_request.type not supported - OFPBRC_BAD_STAT");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_MULTIPART, "ofp_multipart_request.type not supported - OFPBRC_BAD_MULTIPART");
     TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_EXPERIMENTER, "Experimenter id not supported - OFPBRC_BAD_EXPERIMENTER");
     TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_EXP_TYPE, "Experimenter type not supported - OFPBRC_BAD_EXP_TYPE");
     TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_EPERM, "Permissions error - OFPBRC_EPERM");
@@ -1201,6 +1277,7 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_IS_SLAVE, "Denied because controller is slave - OFPBRC_IS_SLAVE");
     TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_PORT, "Invalid port - OFPBRC_BAD_PORT");
     TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_PACKET, "Invalid packet in packet-out - OFPBRC_BAD_PACKET");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_MULTIPART_BUFFER_OVERFLOW, "ofp_multipart_request overflowed the assigned buffer - OFPBRC_MULTIPART_BUFFER_OVERFLOW");
 
     // ofp_bad_action_code
     TYPE_ARRAY(ofp_bad_action_code);
@@ -1290,6 +1367,43 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_table_mod_failed_code, OFPTMFC_BAD_CONFIG, "Specified config is invalid - OFPTMFC_BAD_CONFIG");
     TYPE_ARRAY_ADD(ofp_table_mod_failed_code, OFPTMFC_EPERM, "Permissions error - OFPTMFC_EPERM");
 
+    // ofp_multipart_types
+    TYPE_ARRAY(ofp_multipart_types);
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_DESC, "Description of this OpenFlow switch - OFPMP_DESC");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_FLOW, "Individual flow statistics - OFPMP_FLOW");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_AGGREGATE, "Aggregate flow statistics - OFPMP_AGGREGATE");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_TABLE, "Flow table statistics - OFPMP_TABLE");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_PORT_STATS, "Port statistics - OFPMP_PORT_STATS");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_QUEUE, "Queue statistics for a port - OFPMP_QUEUE");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_GROUP, "Group counter statistics - OFPMP_GROUP");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_GROUP_DESC, "Group description statistics - OFPMP_GROUP_DESC");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_GROUP_FEATURES, "Group features - OFPMP_GROUP_FEATURES");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_METER, "Meter statistics - OFPMP_METER");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_METER_CONFIG, "Meter configuration - OFPMP_METER_CONFIG");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_METER_FEATURES, "Meter features - OFPMP_METER_FEATURES");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_TABLE_FEATURES, "Table features - OFPMP_TABLE_FEATURES");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_PORT_DESC, "Port description - OFPMP_PORT_DESC");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_EXPERIMENTER, "Experimenter extension - OFPMP_EXPERIMENTER");
+
+    // ofp_table_feature_prop_type
+    TYPE_ARRAY(ofp_table_feature_prop_type);
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_INSTRUCTIONS, "Instructions property - OFPTFPT_INSTRUCTIONS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_INSTRUCTIONS_MISS, "Instructions for table-miss - OFPTFPT_INSTRUCTIONS_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_NEXT_TABLES, "Next Table property - OFPTFPT_NEXT_TABLES");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_NEXT_TABLES_MISS, "Next Table for table-miss - OFPTFPT_NEXT_TABLES_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WRITE_ACTIONS, "Write Actions property - OFPTFPT_WRITE_ACTIONS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WRITE_ACTIONS_MISS, "Write Actions for table-miss - OFPTFPT_WRITE_ACTIONS_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_APPLY_ACTIONS, "Apply Actions property - OFPTFPT_APPLY_ACTIONS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_APPLY_ACTIONS_MISS, "Apply Actions for table-miss - OFPTFPT_APPLY_ACTIONS_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_MATCH, "Match property - OFPTFPT_MATCH");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WILDCARDS, "Wildcards property - OFPTFPT_WILDCARDS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WRITE_SETFIELD, "Write Set-Field property - OFPTFPT_WRITE_SETFIELD");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WRITE_SETFIELD_MISS, "Write Set-Field for table-miss - OFPTFPT_WRITE_SETFIELD_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_APPLY_SETFIELD, "Apply Set-Field property - OFPTFPT_APPLY_SETFIELD");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_APPLY_SETFIELD_MISS, "Apply Set-Field for table-miss - OFPTFPT_APPLY_SETFIELD_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_EXPERIMENTER, "Experimenter property - OFPTFPT_EXPERIMENTER");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_EXPERIMENTER_MISS, "Experimenter for table-miss - OFPTFPT_EXPERIMENTER_MISS");
+
     // ofp_queue_op_failed_code
     TYPE_ARRAY(ofp_queue_op_failed_code);
     TYPE_ARRAY_ADD(ofp_queue_op_failed_code, OFPQOFC_BAD_PORT, "Invalid port (or port does not exist) - OFPQOFC_BAD_PORT");
@@ -1371,16 +1485,15 @@ void DissectorContext::setupFlags(void) {
     BITMAP_PART("ofp_flow_mod_flags.OFPFF_RESET_COUNTS", "Reset flow packet and byte counts", 16, OFPFF_RESET_COUNTS);
     BITMAP_PART("ofp_flow_mod_flags.RESERVED", "Reserved", 16, 0xfff8);
 
-    // ofp_stats_reply_flags
-    BITMAP_PART("ofp_stats_reply_flags.OFPSF_REPLY_MORE", "More replies to follow", 16, OFPSF_REPLY_MORE);
-    BITMAP_PART("ofp_stats_reply_flags.RESERVED", "Reserved", 16, 0xfffe);
-
     // ofp_group_capabilities
     BITMAP_PART("ofp_group_capabilities.OFPGFC_SELECT_WEIGHT", "Support weight for select groups", 32, OFPGFC_SELECT_WEIGHT);
     BITMAP_PART("ofp_group_capabilities.OFPGFC_SELECT_LIVENESS", "Support liveness for select groups", 32, OFPGFC_SELECT_LIVENESS);
     BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING", "Support chaining groups", 32, OFPGFC_CHAINING);
     BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING_CHECKS", "Check chaining for loops and delete", 32, OFPGFC_CHAINING_CHECKS);
     BITMAP_PART("ofp_group_capabilities.RESERVED", "Reserved", 32, 0xfffffff0);
-}
 
+    // ofp_multipart_reply_flags
+    BITMAP_PART("ofp_multipart_reply_flags.OFPMPF_REPLY_MORE", "More replies to follow", 16, OFPMPF_REPLY_MORE);
+    BITMAP_PART("ofp_multipart_reply_flags.RESERVED", "Reserved", 16, 0xfffe);
+}
 }

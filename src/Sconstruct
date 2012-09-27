@@ -90,6 +90,7 @@ objects = []
 objects.append(SConscript(['of10/Sconscript'], exports='env'))
 objects.append(SConscript(['of11/Sconscript'], exports='env'))
 objects.append(SConscript(['of12/Sconscript'], exports='env'))
+objects.append(SConscript(['of13/Sconscript'], exports='env'))
 objects.append(SConscript(['util/Sconscript'], exports='env'))
 
 src_files = Split("""

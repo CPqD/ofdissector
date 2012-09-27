@@ -5,6 +5,16 @@
 #include <string.h> // For memset()
 #include <iostream>
 
+void addValueString(GArray *array, guint32 value, const gchar *str) {
+    value_string vs;
+    memset(&vs, 0, sizeof vs);
+
+    vs.value = value;
+    vs.strptr = str;
+
+    g_array_append_val(array, vs);
+}
+
 FieldManager::FieldManager (int proto, std::string key_prefix) : mProto(proto), mKeyPrefix(key_prefix) {
     this->mFieldArray = g_array_new(FALSE, FALSE, sizeof(hf_register_info));
     this->mTreeArray = g_array_new(FALSE, FALSE, sizeof(gint*));

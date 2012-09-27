@@ -394,7 +394,8 @@ void DissectorContext::dissect_ofp_table_feature_prop(proto_tree* parent) {
     ADD_SUBTREE(tree, parent, "ofp_table_feature_prop", length + OFP_MATCH_OXM_PADDING(length));
     ADD_CHILD(tree, "ofp_table_feature_prop.type", 2);
     ADD_CHILD(tree, "ofp_table_feature_prop.length", 2);
-            
+    ADD_CHILD(tree, "padding", 4);
+    
     if (type == OFPTFPT_INSTRUCTIONS || type == OFPTFPT_INSTRUCTIONS_MISS) {
         guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_instructions) + length;
         while (this->_offset < end)

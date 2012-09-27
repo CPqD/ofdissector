@@ -119,6 +119,7 @@ int main(int argc, char *argv[])
     PACK(msg0, "ofp_multipart_reply.body.maxentries", 256, UINT32);
         PACK(msg0, "ofp_multipart_reply.body[0].type", OFPTFPT_INSTRUCTIONS, UINT16);
         PACK(msg0, "ofp_multipart_reply.body[0].length", 12, UINT16);
+        PADDING(msg0, 4);
             PACK(msg0, "ofp_multipart_reply.body[0][0].type", OFPIT_APPLY_ACTIONS, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[0][0].length", 4, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[0][1].type", OFPIT_GOTO_TABLE, UINT16);
@@ -127,6 +128,7 @@ int main(int argc, char *argv[])
         
         PACK(msg0, "ofp_multipart_reply.body[1].type", OFPTFPT_NEXT_TABLES, UINT16);
         PACK(msg0, "ofp_multipart_reply.body[1].length", 7, UINT16);
+        PADDING(msg0, 4);
             PACK(msg0, "ofp_multipart_reply.body[1][0]", 2, UINT8);
             PACK(msg0, "ofp_multipart_reply.body[1][2]", 12, UINT8);
             PACK(msg0, "ofp_multipart_reply.body[1][2]", 22, UINT8);
@@ -134,6 +136,7 @@ int main(int argc, char *argv[])
         
         PACK(msg0, "ofp_multipart_reply.body[2].type", OFPTFPT_WRITE_ACTIONS_MISS, UINT16);
         PACK(msg0, "ofp_multipart_reply.body[2].length", 16, UINT16);
+        PADDING(msg0, 4);
             PACK(msg0, "ofp_multipart_reply.body[2][0].type", OFPAT_OUTPUT, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[2][0].length", 4, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[2][1].type", OFPAT_SET_FIELD, UINT16);
@@ -144,6 +147,7 @@ int main(int argc, char *argv[])
               
         PACK(msg0, "ofp_multipart_reply.body[3].type", OFPTFPT_APPLY_SETFIELD, UINT16);
         PACK(msg0, "ofp_multipart_reply.body[3].length", 12, UINT16);
+        PADDING(msg0, 4);
             PACK(msg0, "ofp_multipart_reply.body[3][0]", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IN_PORT, TRUE, 0), UINT32);
             PACK(msg0, "ofp_multipart_reply.body[3][1]", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IPV4_DST, TRUE, 0), UINT32);
         PADDING(msg0, OFP_MATCH_OXM_PADDING(12));

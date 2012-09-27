@@ -407,7 +407,7 @@ void DissectorContext::dissect_ofp_table_feature_prop(proto_tree* parent) {
         }
     }
     else if (type == OFPTFPT_WRITE_ACTIONS || 
-             type == OFPTFPT_WRITE_ACTIONS_MISS || 
+             type == OFPTFPT_WRITE_ACTIONS_MISS ||
              type == OFPTFPT_APPLY_ACTIONS || 
              type == OFPTFPT_APPLY_ACTIONS_MISS) {
         guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_actions) + length;
@@ -467,7 +467,9 @@ void DissectorContext::dissectMultipartReply() {
 
     switch (type) {
         case OFPMP_TABLE_FEATURES:
-            this->dissect_ofp_table_features(tree);
+            while ((this->_oflen - this->_offset) > 0) {
+                this->dissect_ofp_table_features(tree);
+            }
             break;
         default:
             ADD_CHILD(tree, "ofp_multipart_reply.body", this->_oflen - this->_offset);

@@ -729,16 +729,12 @@ void DissectorContext::dissect_ofp_instruction(proto_tree* parent) {
 
     guint32 message_end = this->_offset + len;
 
-    if (len == 0) {
-        throw ZeroLenInstruction();
-    }
-
     ADD_SUBTREE(tree, parent, "ofp_instruction", len);
     ADD_CHILD(tree, "ofp_instruction.type", 2);
     ADD_CHILD(tree, "ofp_instruction.len", 2);
 
     // If we have just a header, stop here
-    if (len == 4)
+    if (len < 4)
         return;
 
     switch (type) {

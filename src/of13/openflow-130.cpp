@@ -735,7 +735,7 @@ void DissectorContext::dissect_ofp_instruction(proto_tree* parent) {
     ADD_CHILD(tree, "ofp_instruction.len", 2);
 
     // If we have just a header, stop here
-    if (len < 4)
+    if (len <= 4)
         return;
 
     switch (type) {
@@ -786,7 +786,7 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
     ADD_CHILD(tree, "ofp_action.len", 2);
 
     // If we have just a header, stop here
-    if (len == 4)
+    if (len <= 4)
         return;
         
     switch (type) {

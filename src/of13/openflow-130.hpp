@@ -56,6 +56,7 @@ namespace openflow_130 {
         void dissect_ofp_action(proto_tree *);
         void dissectGroupBucket(proto_tree *);
         void dissect_ofp_oxm(proto_tree *, guint32 length);
+        void dissect_ofp_oxm_header(proto_tree *tree);
         int dissect_ofp_oxm_field(proto_tree*);
         void dissect_ofp_packet_in();
         void dissect_ofp_packet_out();
@@ -111,8 +112,6 @@ namespace openflow_130 {
         GArray* ofp_queue_op_failed_code;
         GArray* ofp_switch_config_failed_code;
         GArray* ofp_role_request_failed_code;
-
-    
     };
 
     void init(int);

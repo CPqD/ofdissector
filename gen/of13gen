@@ -477,16 +477,16 @@ void DissectorContext::setupFlags(void) {
     BITMAP_PART("ofp_flow_mod_flags.OFPFF_RESET_COUNTS", "Reset flow packet and byte counts", 16, OFPFF_RESET_COUNTS);
     BITMAP_PART("ofp_flow_mod_flags.RESERVED", "Reserved", 16, 0xfff8);
 
-    // ofp_stats_reply_flags
-    BITMAP_PART("ofp_stats_reply_flags.OFPSF_REPLY_MORE", "More replies to follow", 16, OFPSF_REPLY_MORE);
-    BITMAP_PART("ofp_stats_reply_flags.RESERVED", "Reserved", 16, 0xfffe);
-
     // ofp_group_capabilities
     BITMAP_PART("ofp_group_capabilities.OFPGFC_SELECT_WEIGHT", "Support weight for select groups", 32, OFPGFC_SELECT_WEIGHT);
     BITMAP_PART("ofp_group_capabilities.OFPGFC_SELECT_LIVENESS", "Support liveness for select groups", 32, OFPGFC_SELECT_LIVENESS);
     BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING", "Support chaining groups", 32, OFPGFC_CHAINING);
     BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING_CHECKS", "Check chaining for loops and delete", 32, OFPGFC_CHAINING_CHECKS);
     BITMAP_PART("ofp_group_capabilities.RESERVED", "Reserved", 32, 0xfffffff0);
+
+    // ofp_multipart_request_flags
+    BITMAP_PART("ofp_multipart_request_flags.OFPMPF_REQ_MORE", "More requests to follow", 16, OFPMPF_REQ_MORE);
+    BITMAP_PART("ofp_multipart_request_flags.RESERVED", "Reserved", 16, 0xfffe);
 
     // ofp_multipart_reply_flags
     BITMAP_PART("ofp_multipart_reply_flags.OFPMPF_REPLY_MORE", "More replies to follow", 16, OFPMPF_REPLY_MORE);

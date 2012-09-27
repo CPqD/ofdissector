@@ -391,32 +391,47 @@ void DissectorContext::dissect_ofp_table_feature_prop(proto_tree* parent) {
     READ_UINT16(length);
     this->_offset -= 2;
 
+    ADD_SUBTREE(tree, parent, "ofp_table_feature_prop", length + OFP_MATCH_OXM_PADDING(length));
+    ADD_CHILD(tree, "ofp_table_feature_prop.type", 2);
+    ADD_CHILD(tree, "ofp_table_feature_prop.length", 2);
+            
     if (type == OFPTFPT_INSTRUCTIONS || type == OFPTFPT_INSTRUCTIONS_MISS) {
-        ADD_SUBTREE(tree, parent, "ofp_table_feature_prop_instructions", length + OFP_MATCH_OXM_PADDING(length));
-        ADD_CHILD(tree, "ofp_table_feature_prop.type", 2);
-        ADD_CHILD(tree, "ofp_table_feature_prop.length", 2);
-
         guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_instructions) + length;
         while (this->_offset < end)
             this->dissect_ofp_instruction(tree);
-
-        ADD_CHILD(tree, "padding", OFP_MATCH_OXM_PADDING(length));
     }
     else if (type == OFPTFPT_NEXT_TABLES || type == OFPTFPT_NEXT_TABLES_MISS) {
-        ADD_SUBTREE(tree, parent, "ofp_table_feature_prop_next_tables", length + OFP_MATCH_OXM_PADDING(length));
-        ADD_CHILD(tree, "ofp_table_feature_prop.type", 2);
-        ADD_CHILD(tree, "ofp_table_feature_prop.length", 2);
-
         guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_next_tables) + length;
         while (this->_offset < end) {
             ADD_CHILD(tree, "ofp_table_feature_prop_next_tables.next_table_ids", 1);
         }
-        
-        ADD_CHILD(tree, "padding", OFP_MATCH_OXM_PADDING(length));
     }
-    else {
-        CONSUME_BYTES(length + OFP_MATCH_OXM_PADDING(length)); // We don't know what to do, discard
+    else if (type == OFPTFPT_WRITE_ACTIONS || 
+             type == OFPTFPT_WRITE_ACTIONS_MISS || 
+             type == OFPTFPT_APPLY_ACTIONS || 
+             type == OFPTFPT_APPLY_ACTIONS_MISS) {
+        guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_actions) + length;
+        while (this->_offset < end)
+            this->dissect_ofp_action(tree);
     }
+    
+    else if (type == OFPTFPT_MATCH ||
+             type == OFPTFPT_WILDCARDS ||
+             type == OFPTFPT_WRITE_SETFIELD ||
+             type == OFPTFPT_WRITE_SETFIELD_MISS ||
+             type == OFPTFPT_APPLY_SETFIELD ||
+             type == OFPTFPT_APPLY_SETFIELD_MISS) {
+        guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_oxm) + length;
+        while (this->_offset < end) {
+            ADD_SUBTREE(oxmtree, tree, "ofp_oxm", 4);
+            this->dissect_ofp_oxm_header(oxmtree);
+        }
+    }
+    else { // If we don't know what to do, discard
+        CONSUME_BYTES(length);
+    }
+    
+    ADD_CHILD(tree, "padding", OFP_MATCH_OXM_PADDING(length));
 }
 
 void DissectorContext::dissect_ofp_table_features(proto_tree* parent) {
@@ -663,6 +678,14 @@ void DissectorContext::dissect_ofp_oxm(proto_tree *parent, guint32 length) {
     ADD_CHILD(parent, "padding", OFP_MATCH_OXM_PADDING(length));
 }
 
+void DissectorContext::dissect_ofp_oxm_header(proto_tree *tree) {
+    ADD_CHILD(tree, "ofp_oxm.oxm_class", 2);
+    ADD_CHILD(tree, "ofp_oxm.oxm_field", 1);
+    this->_offset -= 1; // Go back, we're not done with this byte!
+    ADD_CHILD(tree, "ofp_oxm.oxm_hasmask", 1);
+    ADD_CHILD(tree, "ofp_oxm.oxm_length", 1);
+}
+
 int DissectorContext::dissect_ofp_oxm_field(proto_tree *parent) {
     // Header contains length
     READ_UINT32(header);
@@ -670,11 +693,7 @@ int DissectorContext::dissect_ofp_oxm_field(proto_tree *parent) {
     guint32 length = UNPACK_OXM_LENGTH(header);
 
     ADD_SUBTREE(tree, parent, "ofp_oxm", length + 4);
-    ADD_CHILD(tree, "ofp_oxm.oxm_class", 2);
-    ADD_CHILD(tree, "ofp_oxm.oxm_field", 1);
-    this->_offset -= 1; // Go back, we're not done with this byte!
-    ADD_CHILD(tree, "ofp_oxm.oxm_hasmask", 1);
-    ADD_CHILD(tree, "ofp_oxm.oxm_length", 1);
+    dissect_ofp_oxm_header(tree);
 
     // Choose field type to display the formatted value
     // TODO: add support for more types
@@ -698,10 +717,9 @@ int DissectorContext::dissect_ofp_oxm_field(proto_tree *parent) {
         ADD_CHILD(tree, value_field, length);
     }
 
-    // TODO: based on field type, use the proper format for value and mask
-
     return length + 4;
 }
+
 
 void DissectorContext::dissect_ofp_instruction(proto_tree* parent) {
     READ_UINT16(type);
@@ -770,6 +788,10 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
     ADD_CHILD(tree, "ofp_action.type", 2);
     ADD_CHILD(tree, "ofp_action.len", 2);
 
+    // If we have just a header, stop here
+    if (len == 4)
+        return;
+        
     switch (type) {
         case OFPAT_OUTPUT:
             ADD_CHILD(tree, "ofp_action_output.port", 4);
@@ -968,8 +990,7 @@ void DissectorContext::setupFields() {
     FIELD("ofp_table_features.max_entries", "Max entries", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
 
     // ofp_table_feature_prop
-    TREE_FIELD("ofp_table_feature_prop_instructions", "Instructions property");
-    TREE_FIELD("ofp_table_feature_prop_next_tables", "Next tables property");
+    TREE_FIELD("ofp_table_feature_prop", "Property");
     FIELD("ofp_table_feature_prop.type", "Type", FT_UINT16, BASE_DEC, VALUES(ofp_table_feature_prop_type), NO_MASK);
     FIELD("ofp_table_feature_prop.length", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_table_feature_prop_next_tables.next_table_ids", "Next table ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
@@ -1491,6 +1512,10 @@ void DissectorContext::setupFlags(void) {
     BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING", "Support chaining groups", 32, OFPGFC_CHAINING);
     BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING_CHECKS", "Check chaining for loops and delete", 32, OFPGFC_CHAINING_CHECKS);
     BITMAP_PART("ofp_group_capabilities.RESERVED", "Reserved", 32, 0xfffffff0);
+
+    // ofp_multipart_request_flags
+    BITMAP_PART("ofp_multipart_request_flags.OFPMPF_REQ_MORE", "More requests to follow", 16, OFPMPF_REQ_MORE);
+    BITMAP_PART("ofp_multipart_request_flags.RESERVED", "Reserved", 16, 0xfffe);
 
     // ofp_multipart_reply_flags
     BITMAP_PART("ofp_multipart_reply_flags.OFPMPF_REPLY_MORE", "More replies to follow", 16, OFPMPF_REPLY_MORE);

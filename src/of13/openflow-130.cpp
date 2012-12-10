@@ -268,7 +268,7 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
                 case OFPT_ROLE_REQUEST:
                 case OFPT_ROLE_REPLY:
                     this->dissect_ofp_role_request();
-                    break;
+                    break;                        
 
                 default:
                     IGNORE; // We don't know what to do
@@ -530,6 +530,7 @@ void DissectorContext::dissect_ofp_packet_in() {
     ADD_CHILD(tree, "ofp_packet_in.total_len", 2);
     ADD_CHILD(tree, "ofp_packet_in.reason", 1);
     ADD_CHILD(tree, "ofp_packet_in.table_id", 1);
+    ADD_CHILD(tree, "ofp_packet_in.cookie", 8);    
 
     ADD_SUBTREE(match_tree, tree, "ofp_packet_in.match", this->_oflen - this->_offset);
     this->dissect_ofp_match(match_tree);
@@ -1044,6 +1045,7 @@ void DissectorContext::setupFields() {
     FIELD("ofp_packet_in.total_len", "Total length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_packet_in.reason", "Reason", FT_UINT8, BASE_HEX, VALUES(ofp_packet_in_reason), NO_MASK);
     FIELD("ofp_packet_in.table_id", "Table ID", FT_UINT8, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_packet_in.cookie", "Cookie", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
     TREE_FIELD("ofp_packet_in.match", "Match");
     FIELD("ofp_packet_in.data", "Data", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
 

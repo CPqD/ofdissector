@@ -57,7 +57,7 @@ proto_reg_handoff_openflow (void)
     data_handle = find_dissector("data");
     openflow_handle = create_dissector_handle(dissect_openflow, proto_openflow);
     dissector_add("tcp.port", OFP_TCP_PORT, openflow_handle);
-
+    dissector_add("tcp.port", 43984, openflow_handle);
     OFP_100_NS::Context->setHandles(data_handle, openflow_handle);
     OFP_110_NS::Context->setHandles(data_handle, openflow_handle);
     OFP_120_NS::Context->setHandles(data_handle, openflow_handle);

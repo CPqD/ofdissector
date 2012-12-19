@@ -71,6 +71,7 @@ namespace openflow_130 {
         tvbuff_t *_tvb;
         packet_info *_pinfo;
         proto_tree *_tree;
+	dissector_handle_t _ether_handle;
         guint32 _offset;
         guint32 _rawLen;
         guint16 _oflen;

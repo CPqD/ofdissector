@@ -69,12 +69,13 @@ namespace openflow_120 {
         tvbuff_t *_tvb;
         packet_info *_pinfo;
         proto_tree *_tree;
+        dissector_handle_t _ether_handle;
         guint32 _offset;
         guint32 _rawLen;
         guint16 _oflen;
         proto_tree *_curOFPSubtree;
         static DissectorContext *mSingle;
-        
+
         // Generated code
         GArray* ofp_type;
         GArray* ofp_port_no;

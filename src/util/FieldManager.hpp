@@ -86,6 +86,20 @@ class FieldManager {
     */
     proto_item* addBoolean(proto_tree* parent, std::string key, tvbuff_t *tvb, guint32 start, guint32 len, guint32 value);
 
+    /*!
+    \details Adds a subdisector to the given parent tree.
+    The format of the data is determined by the arguments supplied to \link FieldManager::createField \endlink.
+
+    \param parent Parent tree pointer
+    \param key Key named used in \link FieldManager::createField \endlink
+    \param tvb Current packet buffer
+    \param pinfo Current packet info
+    \param handle Dissector Handle
+    \param start Starting byte position in the packet buffer for the data in this item
+    \param len Length of the packet data covering this item
+    */
+    void addDissector(proto_tree* parent, std::string key, tvbuff_t *tvb, packet_info *pinfo, dissector_handle_t handle, guint32 start, guint32 len);
+
     private:
     std::map<std::string, gint*>  mFields;
     std::map<std::string, gint*>  mSubtrees;

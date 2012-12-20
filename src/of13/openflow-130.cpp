@@ -87,6 +87,8 @@ functions and methods. */
     this->mFM.addBoolean(tree, field, this->_tvb, this->_offset, length, bitmap)
 #define ADD_CHILD(tree, field, length) \
     this->mFM.addItem(tree, field, this->_tvb, this->_offset, length); this->_offset += length
+#define ADD_DISSECTOR(tree, field, length)	\
+    this->mFM.addDissector(tree, field, this->_tvb, this->_pinfo, this->_ether_handle, this->_offset, length); this->_offset += length
 #define CONSUME_BYTES(length) \
     this->_offset += length
 
@@ -151,6 +153,7 @@ void init(int proto_openflow) {
 DissectorContext::DissectorContext (int proto_openflow) : mProtoOpenflow(proto_openflow), mFM(proto_openflow, "of13") {
     Context = this;
 
+    this->_ether_handle = find_dissector("eth_withoutfcs");
     this->setupCodes();
     this->setupFlags();
     this->setupFields();
@@ -537,7 +540,10 @@ void DissectorContext::dissect_ofp_packet_in() {
 
     ADD_CHILD(tree, "padding", 2);
 
-    ADD_CHILD(tree, "ofp_packet_in.data", this->_oflen - this->_offset);
+    if (this->_oflen - this->_offset > 0) {
+	ADD_DISSECTOR(tree, "ofp_packet_in.data", this->_oflen - this->_offset);
+    } else
+	ADD_CHILD(tree, "ofp_packet_in.data", this->_oflen - this->_offset);
 }
 
 void DissectorContext::dissect_ofp_packet_out() {
@@ -554,7 +560,10 @@ void DissectorContext::dissect_ofp_packet_out() {
         dissect_ofp_action(tree);
     }
 
-    ADD_CHILD(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
+    if (this->_oflen - this->_offset > 0) {
+	ADD_DISSECTOR(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
+    } else
+	ADD_CHILD(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
 }
 
 void DissectorContext::dissectGroupMod() {

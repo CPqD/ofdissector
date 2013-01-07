@@ -1,0 +1,496 @@
+GArray* ofp_type;
+GArray* ofp_port_no;
+GArray* ofp_queue_properties;
+GArray* ofp_match_type;
+GArray* ofp_oxm_class;
+GArray* oxm_ofb_match_fields;
+GArray* ofp_vlan_id;
+GArray* ofp_instruction_type;
+GArray* ofp_action_type;
+GArray* ofp_controller_max_len;
+GArray* ofp_table;
+GArray* ofp_flow_mod_command;
+GArray* ofp_group;
+GArray* ofp_group_mod_command;
+GArray* ofp_group_type;
+GArray* ofp_controller_role;
+GArray* ofp_packet_in_reason;
+GArray* ofp_flow_removed_reason;
+GArray* ofp_port_reason;
+GArray* ofp_error_type;
+GArray* ofp_hello_failed_code;
+GArray* ofp_bad_request_code;
+GArray* ofp_bad_action_code;
+GArray* ofp_bad_instruction_code;
+GArray* ofp_bad_match_code;
+GArray* ofp_flow_mod_failed_code;
+GArray* ofp_group_mod_failed_code;
+GArray* ofp_port_mod_failed_code;
+GArray* ofp_table_mod_failed_code;
+GArray* ofp_multipart_types;
+GArray* ofp_table_feature_prop_type;
+GArray* ofp_queue_op_failed_code;
+GArray* ofp_switch_config_failed_code;
+GArray* ofp_role_request_failed_code;
+
+
+void DissectorContext::setupCodes(void) {
+    // ofp_type
+    TYPE_ARRAY(ofp_type);
+    TYPE_ARRAY_ADD(ofp_type, OFPT_HELLO, "Hello (SM) - OFPT_HELLO");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_ERROR, "Error (SM) - OFPT_ERROR");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_ECHO_REQUEST, "Echo request (SM) - OFPT_ECHO_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_ECHO_REPLY, "Echo reply (SM) - OFPT_ECHO_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_EXPERIMENTER, "Experimenter message (SM) - OFPT_EXPERIMENTER");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_FEATURES_REQUEST, "Features request (CSM) - OFPT_FEATURES_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_FEATURES_REPLY, "Features reply (CSM) - OFPT_FEATURES_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_GET_CONFIG_REQUEST, "Get config request (CSM) - OFPT_GET_CONFIG_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_GET_CONFIG_REPLY, "Get config reply (CSM) - OFPT_GET_CONFIG_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_SET_CONFIG, "Set config (CSM) - OFPT_SET_CONFIG");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_PACKET_IN, "Packet in (AM) - OFPT_PACKET_IN");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_FLOW_REMOVED, "Flow removed (AM) - OFPT_FLOW_REMOVED");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_PORT_STATUS, "Port status (AM) - OFPT_PORT_STATUS");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_PACKET_OUT, "Packet out (CSM) - OFPT_PACKET_OUT");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_FLOW_MOD, "Flow mod (CSM) - OFPT_FLOW_MOD");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_GROUP_MOD, "Group mod (CSM) - OFPT_GROUP_MOD");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_PORT_MOD, "Port mod (CSM) - OFPT_PORT_MOD");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_TABLE_MOD, "Table mod (CSM) - OFPT_TABLE_MOD");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_MULTIPART_REQUEST, "Multipart request (CSM) - OFPT_MULTIPART_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_MULTIPART_REPLY, "Multipart reply (CSM) - OFPT_MULTIPART_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_BARRIER_REQUEST, "Barrier request (CSM) - OFPT_BARRIER_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_BARRIER_REPLY, "Stats reply (CSM) - OFPT_BARRIER_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_QUEUE_GET_CONFIG_REQUEST, "Queue get config request (CSM) - OFPT_QUEUE_GET_CONFIG_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_QUEUE_GET_CONFIG_REPLY, "Queue get config reply (CSM) - OFPT_QUEUE_GET_CONFIG_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_ROLE_REQUEST, "Role request (CSM) - OFPT_ROLE_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_ROLE_REPLY, "Role reply (CSM) - OFPT_ROLE_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_GET_ASYNC_REQUEST, "Async request (CSM) - OFPT_GET_ASYNC_REQUEST");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_GET_ASYNC_REPLY, "Async reply (CSM) - OFPT_GET_ASYNC_REPLY");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_SET_ASYNC, "Set async (CSM) - OFPT_SET_ASYNC");
+    TYPE_ARRAY_ADD(ofp_type, OFPT_METER_MOD, "Meter Mod (CSM) - OFPT_METER_MOD");
+
+    // ofp_port_no
+    TYPE_ARRAY(ofp_port_no);
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_MAX, "Maximum number of physical and logical switch ports - OFPP_MAX");
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_IN_PORT, "Send the packet out the input port - OFPP_IN_PORT");
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_TABLE, "Submit the packet to the first flow table - OFPP_TABLE");
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_NORMAL, "Process with normal L2/L3 switching - OFPP_NORMAL");
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_FLOOD, "All physical ports in VLAN, except input port and those blocked or link down - OFPP_FLOOD");
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_ALL, "All physical ports except input port - OFPP_ALL");
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_CONTROLLER, "Send to controller - OFPP_CONTROLLER");
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_LOCAL, "Local openflow \"port\" - OFPP_LOCAL");
+    TYPE_ARRAY_ADD(ofp_port_no, OFPP_ANY, "Any port. For flow mod (delete) and flow stats requests only - OFPP_ANY");
+
+    // ofp_queue_properties
+    TYPE_ARRAY(ofp_queue_properties);
+    TYPE_ARRAY_ADD(ofp_queue_properties, OFPQT_MIN_RATE, "Minimum datarate guaranteed - OFPQT_MIN_RATE");
+    TYPE_ARRAY_ADD(ofp_queue_properties, OFPQT_MAX_RATE, "Maximum datarate - OFPQT_MAX_RATE");
+    TYPE_ARRAY_ADD(ofp_queue_properties, OFPQT_EXPERIMENTER, "Experimenter defined property - OFPQT_EXPERIMENTER");
+
+    // ofp_match_type
+    TYPE_ARRAY(ofp_match_type);
+    TYPE_ARRAY_ADD(ofp_match_type, OFPMT_STANDARD, "Deprecated - OFPMT_STANDARD");
+    TYPE_ARRAY_ADD(ofp_match_type, OFPMT_OXM, "OpenFlow Extensible Match - OFPMT_OXM");
+
+    // ofp_oxm_class
+    TYPE_ARRAY(ofp_oxm_class);
+    TYPE_ARRAY_ADD(ofp_oxm_class, OFPXMC_NXM_0, "Backward compatibility with NXM - OFPXMC_NXM_0");
+    TYPE_ARRAY_ADD(ofp_oxm_class, OFPXMC_NXM_1, "Backward compatibility with NXM - OFPXMC_NXM_1");
+    TYPE_ARRAY_ADD(ofp_oxm_class, OFPXMC_OPENFLOW_BASIC, "Basic class for OpenFlow - OFPXMC_OPENFLOW_BASIC");
+    TYPE_ARRAY_ADD(ofp_oxm_class, OFPXMC_EXPERIMENTER, "Experimenter class - OFPXMC_EXPERIMENTER");
+
+    // oxm_ofb_match_fields
+    TYPE_ARRAY(oxm_ofb_match_fields);
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IN_PORT, "Switch input port - OFPXMT_OFB_IN_PORT");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IN_PHY_PORT, "Switch physical input port - OFPXMT_OFB_IN_PHY_PORT");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_METADATA, "Metadata passed between tables - OFPXMT_OFB_METADATA");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ETH_DST, "Ethernet destination address - OFPXMT_OFB_ETH_DST");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ETH_SRC, "Ethernet source address - OFPXMT_OFB_ETH_SRC");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ETH_TYPE, "Ethernet frame type - OFPXMT_OFB_ETH_TYPE");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_VLAN_VID, "VLAN id - OFPXMT_OFB_VLAN_VID");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_VLAN_PCP, "VLAN priority - OFPXMT_OFB_VLAN_PCP");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IP_DSCP, "IP DSCP (6 bits in ToS field) - OFPXMT_OFB_IP_DSCP");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IP_ECN, "IP ECN (2 bits in ToS field) - OFPXMT_OFB_IP_ECN");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IP_PROTO, "IP protocol - OFPXMT_OFB_IP_PROTO");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV4_SRC, "IPv4 source address - OFPXMT_OFB_IPV4_SRC");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV4_DST, "IPv4 destination address - OFPXMT_OFB_IPV4_DST");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_TCP_SRC, "TCP source port - OFPXMT_OFB_TCP_SRC");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_TCP_DST, "TCP destination port - OFPXMT_OFB_TCP_DST");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_UDP_SRC, "UDP source port - OFPXMT_OFB_UDP_SRC");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_UDP_DST, "UDP destination port - OFPXMT_OFB_UDP_DST");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_SCTP_SRC, "SCTP source port - OFPXMT_OFB_SCTP_SRC");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_SCTP_DST, "SCTP destination port - OFPXMT_OFB_SCTP_DST");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ICMPV4_TYPE, "ICMP type - OFPXMT_OFB_ICMPV4_TYPE");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ICMPV4_CODE, "ICMP code - OFPXMT_OFB_ICMPV4_CODE");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ARP_OP, "ARP opcode - OFPXMT_OFB_ARP_OP");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ARP_SPA, "ARP source IPv4 address - OFPXMT_OFB_ARP_SPA");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ARP_TPA, "ARP target IPv4 address - OFPXMT_OFB_ARP_TPA");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ARP_SHA, "ARP source hardware address - OFPXMT_OFB_ARP_SHA");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ARP_THA, "ARP target hardware address - OFPXMT_OFB_ARP_THA");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV6_SRC, "IPv6 source address - OFPXMT_OFB_IPV6_SRC");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV6_DST, "IPv6 destination address - OFPXMT_OFB_IPV6_DST");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV6_FLABEL, "IPv6 Flow Label - OFPXMT_OFB_IPV6_FLABEL");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ICMPV6_TYPE, "ICMPv6 type - OFPXMT_OFB_ICMPV6_TYPE");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_ICMPV6_CODE, "ICMPv6 code - OFPXMT_OFB_ICMPV6_CODE");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV6_ND_TARGET, "Target address for ND - OFPXMT_OFB_IPV6_ND_TARGET");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV6_ND_SLL, "Source link-layer for ND - OFPXMT_OFB_IPV6_ND_SLL");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV6_ND_TLL, "Target link-layer for ND - OFPXMT_OFB_IPV6_ND_TLL");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_MPLS_LABEL, "MPLS label - OFPXMT_OFB_MPLS_LABEL");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_MPLS_TC, "MPLS TC - OFPXMT_OFB_MPLS_TC");
+
+    // ofp_vlan_id
+    TYPE_ARRAY(ofp_vlan_id);
+    TYPE_ARRAY_ADD(ofp_vlan_id, OFPVID_PRESENT, "Bit that indicate that a VLAN id is set - OFPVID_PRESENT");
+    TYPE_ARRAY_ADD(ofp_vlan_id, OFPVID_NONE, "No VLAN id was set - OFPVID_NONE");
+
+    // ofp_instruction_type
+    TYPE_ARRAY(ofp_instruction_type);
+    TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_GOTO_TABLE, "Setup the next table in the lookup - OFPIT_GOTO_TABLE");
+    TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_WRITE_METADATA, "Setup the metadata field for use later in pipeline - OFPIT_WRITE_METADATA");
+    TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_WRITE_ACTIONS, "Write the action(s) onto the datapath action set - OFPIT_WRITE_ACTIONS");
+    TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_APPLY_ACTIONS, "Applies the action(s) immediately - OFPIT_APPLY_ACTIONS");
+    TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_CLEAR_ACTIONS, "Clears all actions from the datapath action set - OFPIT_CLEAR_ACTIONS");
+    TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_METER, "Apply meter (rate limiter) - OFPIT_METER");
+    TYPE_ARRAY_ADD(ofp_instruction_type, OFPIT_EXPERIMENTER, "Experimenter instruction - OFPIT_EXPERIMENTER");
+
+    // ofp_action_type
+    TYPE_ARRAY(ofp_action_type);
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_OUTPUT, "Output to switch port - OFPAT_OUTPUT");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_COPY_TTL_OUT, "Copy TTL \"outwards\" -- from next-to-outermost to outermost - OFPAT_COPY_TTL_OUT");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_COPY_TTL_IN, "Copy TTL \"inwards\" -- from outermost to next-to-outermost - OFPAT_COPY_TTL_IN");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_SET_MPLS_TTL, "MPLS TTL - OFPAT_SET_MPLS_TTL");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_DEC_MPLS_TTL, "Decrement MPLS TTL - OFPAT_DEC_MPLS_TTL");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_PUSH_VLAN, "Push a new VLAN tag - OFPAT_PUSH_VLAN");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_POP_VLAN, "Pop the outer VLAN tag - OFPAT_POP_VLAN");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_PUSH_MPLS, "Push a new MPLS tag - OFPAT_PUSH_MPLS");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_POP_MPLS, "Pop the outer MPLS tag - OFPAT_POP_MPLS");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_SET_QUEUE, "Set queue id when outputting to a port - OFPAT_SET_QUEUE");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_GROUP, "Apply group - OFPAT_GROUP");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_SET_NW_TTL, "IP TTL - OFPAT_SET_NW_TTL");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_DEC_NW_TTL, "Decrement IP TTL - OFPAT_DEC_NW_TTL");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_SET_FIELD, "Set a header field using OXM TLV format - OFPAT_SET_FIELD");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_EXPERIMENTER, "Experimenter action - OFPAT_EXPERIMENTER");
+
+    // ofp_controller_max_len
+    TYPE_ARRAY(ofp_controller_max_len);
+    TYPE_ARRAY_ADD(ofp_controller_max_len, OFPCML_MAX, "maximum max_len value which can be used to request a specific byte length - OFPCML_MAX");
+    TYPE_ARRAY_ADD(ofp_controller_max_len, OFPCML_NO_BUFFER, "indicates that no buffering should be applied and the whole packet is to be sent to the controller - OFPCML_NO_BUFFER");
+
+    // ofp_table
+    TYPE_ARRAY(ofp_table);
+    TYPE_ARRAY_ADD(ofp_table, OFPTT_MAX, "Last usable table number - OFPTT_MAX");
+    TYPE_ARRAY_ADD(ofp_table, OFPTT_ALL, "Wildcard table used for table config flow stats and flow deletes - OFPTT_ALL");
+
+    // ofp_flow_mod_command
+    TYPE_ARRAY(ofp_flow_mod_command);
+    TYPE_ARRAY_ADD(ofp_flow_mod_command, OFPFC_ADD, "New flow - OFPFC_ADD");
+    TYPE_ARRAY_ADD(ofp_flow_mod_command, OFPFC_MODIFY, "Modify all matching flows - OFPFC_MODIFY");
+    TYPE_ARRAY_ADD(ofp_flow_mod_command, OFPFC_MODIFY_STRICT, "Modify entry strictly matching wildcards and priority - OFPFC_MODIFY_STRICT");
+    TYPE_ARRAY_ADD(ofp_flow_mod_command, OFPFC_DELETE, "Delete all matching flows - OFPFC_DELETE");
+    TYPE_ARRAY_ADD(ofp_flow_mod_command, OFPFC_DELETE_STRICT, "Delete entry strictly matching wildcards and priority - OFPFC_DELETE_STRICT");
+
+    // ofp_group
+    TYPE_ARRAY(ofp_group);
+    TYPE_ARRAY_ADD(ofp_group, OFPG_MAX, "Last usable group number - OFPG_MAX");
+    TYPE_ARRAY_ADD(ofp_group, OFPG_ALL, "Represents all groups for group delete commands - OFPG_ALL");
+    TYPE_ARRAY_ADD(ofp_group, OFPG_ANY, "Wildcard group used only for flow stats requests. Selects all flows regardless of group (including flows with no group) - OFPG_ANY");
+
+    // ofp_group_mod_command
+    TYPE_ARRAY(ofp_group_mod_command);
+    TYPE_ARRAY_ADD(ofp_group_mod_command, OFPGC_ADD, "New group - OFPGC_ADD");
+    TYPE_ARRAY_ADD(ofp_group_mod_command, OFPGC_MODIFY, "Modify all matching groups - OFPGC_MODIFY");
+    TYPE_ARRAY_ADD(ofp_group_mod_command, OFPGC_DELETE, "Delete all matching groups - OFPGC_DELETE");
+
+    // ofp_group_type
+    TYPE_ARRAY(ofp_group_type);
+    TYPE_ARRAY_ADD(ofp_group_type, OFPGT_ALL, "All (multicast/broadcast) group - OFPGT_ALL");
+    TYPE_ARRAY_ADD(ofp_group_type, OFPGT_SELECT, "Select group - OFPGT_SELECT");
+    TYPE_ARRAY_ADD(ofp_group_type, OFPGT_INDIRECT, "Indirect group - OFPGT_INDIRECT");
+    TYPE_ARRAY_ADD(ofp_group_type, OFPGT_FF, "Fast failover group - OFPGT_FF");
+
+    // ofp_controller_role
+    TYPE_ARRAY(ofp_controller_role);
+    TYPE_ARRAY_ADD(ofp_controller_role, OFPCR_ROLE_NOCHANGE, "Don’t change current role - OFPCR_ROLE_NOCHANGE");
+    TYPE_ARRAY_ADD(ofp_controller_role, OFPCR_ROLE_EQUAL, "Default role, full access - OFPCR_ROLE_EQUAL");
+    TYPE_ARRAY_ADD(ofp_controller_role, OFPCR_ROLE_MASTER, "Full access, at most one master - OFPCR_ROLE_MASTER");
+    TYPE_ARRAY_ADD(ofp_controller_role, OFPCR_ROLE_SLAVE, "Read-only access - OFPCR_ROLE_SLAVE");
+
+    // ofp_packet_in_reason
+    TYPE_ARRAY(ofp_packet_in_reason);
+    TYPE_ARRAY_ADD(ofp_packet_in_reason, OFPR_NO_MATCH, "No matching flow - OFPR_NO_MATCH");
+    TYPE_ARRAY_ADD(ofp_packet_in_reason, OFPR_ACTION, "Action explicitly output to controller - OFPR_ACTION");
+    TYPE_ARRAY_ADD(ofp_packet_in_reason, OFPR_INVALID_TTL, "Packet has invalid TTL - OFPR_INVALID_TTL");
+
+    // ofp_flow_removed_reason
+    TYPE_ARRAY(ofp_flow_removed_reason);
+    TYPE_ARRAY_ADD(ofp_flow_removed_reason, OFPRR_IDLE_TIMEOUT, "Flow idle time exceeded idle_timeout - OFPRR_IDLE_TIMEOUT");
+    TYPE_ARRAY_ADD(ofp_flow_removed_reason, OFPRR_HARD_TIMEOUT, "Time exceeded hard_timeout - OFPRR_HARD_TIMEOUT");
+    TYPE_ARRAY_ADD(ofp_flow_removed_reason, OFPRR_DELETE, "Evicted by a DELETE flow mod - OFPRR_DELETE");
+    TYPE_ARRAY_ADD(ofp_flow_removed_reason, OFPRR_GROUP_DELETE, "Group was removed - OFPRR_GROUP_DELETE");
+
+    // ofp_port_reason
+    TYPE_ARRAY(ofp_port_reason);
+    TYPE_ARRAY_ADD(ofp_port_reason, OFPPR_ADD, "The port was added - OFPPR_ADD");
+    TYPE_ARRAY_ADD(ofp_port_reason, OFPPR_DELETE, "The port was removed - OFPPR_DELETE");
+    TYPE_ARRAY_ADD(ofp_port_reason, OFPPR_MODIFY, "Some attribute of the port has changed - OFPPR_MODIFY");
+
+    // ofp_error_type
+    TYPE_ARRAY(ofp_error_type);
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_HELLO_FAILED, "Hello protocol failed - OFPET_HELLO_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_BAD_REQUEST, "Request was not understood - OFPET_BAD_REQUEST");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_BAD_ACTION, "Error in action description - OFPET_BAD_ACTION");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_BAD_INSTRUCTION, "Error in instruction list - OFPET_BAD_INSTRUCTION");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_BAD_MATCH, "Error in match - OFPET_BAD_MATCH");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_FLOW_MOD_FAILED, "Problem modifying flow entry - OFPET_FLOW_MOD_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_GROUP_MOD_FAILED, "Problem modifying group entry - OFPET_GROUP_MOD_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_PORT_MOD_FAILED, "Port mod request failed - OFPET_PORT_MOD_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_TABLE_MOD_FAILED, "Table mod request failed - OFPET_TABLE_MOD_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_QUEUE_OP_FAILED, "Queue operation failed - OFPET_QUEUE_OP_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_SWITCH_CONFIG_FAILED, "Switch config request failed - OFPET_SWITCH_CONFIG_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_ROLE_REQUEST_FAILED, "Controller Role request failed - OFPET_ROLE_REQUEST_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_METER_MOD_FAILED, "Error in meter - OFPET_METER_MOD_FAILED");
+    TYPE_ARRAY_ADD(ofp_error_type, OFPET_EXPERIMENTER, "Experimenter error messages - OFPET_EXPERIMENTER");
+
+    // ofp_hello_failed_code
+    TYPE_ARRAY(ofp_hello_failed_code);
+    TYPE_ARRAY_ADD(ofp_hello_failed_code, OFPHFC_INCOMPATIBLE, "No compatible version - OFPHFC_INCOMPATIBLE");
+    TYPE_ARRAY_ADD(ofp_hello_failed_code, OFPHFC_EPERM, "Permissions error - OFPHFC_EPERM");
+
+    // ofp_bad_request_code
+    TYPE_ARRAY(ofp_bad_request_code);
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_VERSION, "ofp_header.version not supported - OFPBRC_BAD_VERSION");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_TYPE, "ofp_header.type not supported - OFPBRC_BAD_TYPE");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_MULTIPART, "ofp_multipart_request.type not supported - OFPBRC_BAD_MULTIPART");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_EXPERIMENTER, "Experimenter id not supported - OFPBRC_BAD_EXPERIMENTER");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_EXP_TYPE, "Experimenter type not supported - OFPBRC_BAD_EXP_TYPE");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_EPERM, "Permissions error - OFPBRC_EPERM");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_LEN, "Wrong request length for type - OFPBRC_BAD_LEN");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BUFFER_EMPTY, "Specified buffer has already been used - OFPBRC_BUFFER_EMPTY");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BUFFER_UNKNOWN, "Specified buffer does not exist - OFPBRC_BUFFER_UNKNOWN");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_TABLE_ID, "Specified table-id invalid or does not exist - OFPBRC_BAD_TABLE_ID");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_IS_SLAVE, "Denied because controller is slave - OFPBRC_IS_SLAVE");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_PORT, "Invalid port - OFPBRC_BAD_PORT");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_BAD_PACKET, "Invalid packet in packet-out - OFPBRC_BAD_PACKET");
+    TYPE_ARRAY_ADD(ofp_bad_request_code, OFPBRC_MULTIPART_BUFFER_OVERFLOW, "ofp_multipart_request overflowed the assigned buffer - OFPBRC_MULTIPART_BUFFER_OVERFLOW");
+
+    // ofp_bad_action_code
+    TYPE_ARRAY(ofp_bad_action_code);
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_TYPE, "Unknown action type - OFPBAC_BAD_TYPE");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_LEN, "Length problem in actions - OFPBAC_BAD_LEN");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_EXPERIMENTER, "Unknown experimenter id specified - OFPBAC_BAD_EXPERIMENTER");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_EXP_TYPE, "Unknown action for experimenter id - OFPBAC_BAD_EXP_TYPE");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_OUT_PORT, "Problem validating output port - OFPBAC_BAD_OUT_PORT");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_ARGUMENT, "Bad action argument - OFPBAC_BAD_ARGUMENT");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_EPERM, "Permissions error - OFPBAC_EPERM");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_TOO_MANY, "Can’t handle this many actions - OFPBAC_TOO_MANY");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_QUEUE, "Problem validating output queue - OFPBAC_BAD_QUEUE");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_OUT_GROUP, "Invalid group id in forward action - OFPBAC_BAD_OUT_GROUP");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_MATCH_INCONSISTENT, "Action can’t apply for this match or Set-Field missing prerequisite - OFPBAC_MATCH_INCONSISTENT");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_UNSUPPORTED_ORDER, "Action order is unsupported for the action list in an Apply-Actions instruction - OFPBAC_UNSUPPORTED_ORDER");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_TAG, "Actions uses an unsupported tag/encap - OFPBAC_BAD_TAG");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_SET_TYPE, "Unsupported type in SET_FIELD action - OFPBAC_BAD_SET_TYPE");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_SET_LEN, "Length problem in SET_FIELD action - OFPBAC_BAD_SET_LEN");
+    TYPE_ARRAY_ADD(ofp_bad_action_code, OFPBAC_BAD_SET_ARGUMENT, "Bad argument in SET_FIELD action - OFPBAC_BAD_SET_ARGUMENT");
+
+    // ofp_bad_instruction_code
+    TYPE_ARRAY(ofp_bad_instruction_code);
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_UNKNOWN_INST, "Unknown instruction - OFPBIC_UNKNOWN_INST");
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_UNSUP_INST, "Switch or table does not support the instruction - OFPBIC_UNSUP_INST");
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_BAD_TABLE_ID, "Invalid Table-ID specified - OFPBIC_BAD_TABLE_ID");
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_UNSUP_METADATA, "Metadata value unsupported by datapath - OFPBIC_UNSUP_METADATA");
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_UNSUP_METADATA_MASK, "Metadata mask value unsupported by datapath - OFPBIC_UNSUP_METADATA_MASK");
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_BAD_EXPERIMENTER, "Unknown experimenter id specified - OFPBIC_BAD_EXPERIMENTER");
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_BAD_EXP_TYPE, "Unknown instruction for experimenter id - OFPBIC_BAD_EXP_TYPE");
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_BAD_LEN, "Length problem in instructions - OFPBIC_BAD_LEN");
+    TYPE_ARRAY_ADD(ofp_bad_instruction_code, OFPBIC_EPERM, "Permissions error - OFPBIC_EPERM");
+
+    // ofp_bad_match_code
+    TYPE_ARRAY(ofp_bad_match_code);
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_TYPE, "Unsupported match type specified by the match - OFPBMC_BAD_TYPE");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_LEN, "Length problem in match - OFPBMC_BAD_LEN");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_TAG, "Match uses an unsupported tag/encap - OFPBMC_BAD_TAG");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_DL_ADDR_MASK, "Unsupported datalink addr mask - switch does not support arbitrary datalink address mask - OFPBMC_BAD_DL_ADDR_MASK");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_NW_ADDR_MASK, "Unsupported network addr mask - switch does not support arbitrary network address mask - OFPBMC_BAD_NW_ADDR_MASK");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_WILDCARDS, "Unsupported combination of fields masked or omitted in the match - OFPBMC_BAD_WILDCARDS");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_FIELD, "Unsupported field type in the match - OFPBMC_BAD_FIELD");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_VALUE, "Unsupported value in a match field - OFPBMC_BAD_VALUE");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_MASK, "Unsupported mask specified in the match, field is not dl-address or nw-address - OFPBMC_BAD_MASK");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_BAD_PREREQ, "A prerequisite was not met - OFPBMC_BAD_PREREQ");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_DUP_FIELD, "A field type was duplicated - OFPBMC_DUP_FIELD");
+    TYPE_ARRAY_ADD(ofp_bad_match_code, OFPBMC_EPERM, "Permissions error - OFPBMC_EPERM");
+
+    // ofp_flow_mod_failed_code
+    TYPE_ARRAY(ofp_flow_mod_failed_code);
+    TYPE_ARRAY_ADD(ofp_flow_mod_failed_code, OFPFMFC_UNKNOWN, "Unspecified error - OFPFMFC_UNKNOWN");
+    TYPE_ARRAY_ADD(ofp_flow_mod_failed_code, OFPFMFC_TABLE_FULL, "Flow not added because table was full - OFPFMFC_TABLE_FULL");
+    TYPE_ARRAY_ADD(ofp_flow_mod_failed_code, OFPFMFC_BAD_TABLE_ID, "Table does not exist - OFPFMFC_BAD_TABLE_ID");
+    TYPE_ARRAY_ADD(ofp_flow_mod_failed_code, OFPFMFC_OVERLAP, "Attempted to add overlapping flow with CHECK_OVERLAP flag set - OFPFMFC_OVERLAP");
+    TYPE_ARRAY_ADD(ofp_flow_mod_failed_code, OFPFMFC_EPERM, "Permissions error - OFPFMFC_EPERM");
+    TYPE_ARRAY_ADD(ofp_flow_mod_failed_code, OFPFMFC_BAD_TIMEOUT, "Flow not added because of unsupported idle/hard timeout - OFPFMFC_BAD_TIMEOUT");
+    TYPE_ARRAY_ADD(ofp_flow_mod_failed_code, OFPFMFC_BAD_COMMAND, "Unsupported or unknown command - OFPFMFC_BAD_COMMAND");
+    TYPE_ARRAY_ADD(ofp_flow_mod_failed_code, OFPFMFC_BAD_FLAGS, "Unsupported or unknown flags - OFPFMFC_BAD_FLAGS");
+
+    // ofp_group_mod_failed_code
+    TYPE_ARRAY(ofp_group_mod_failed_code);
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_GROUP_EXISTS, "Group not added because a group ADD attempted to replace an already-present group - OFPGMFC_GROUP_EXISTS");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_INVALID_GROUP, "Group not added because Group - OFPGMFC_INVALID_GROUP");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_OUT_OF_GROUPS, "The group table is full - OFPGMFC_OUT_OF_GROUPS");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_OUT_OF_BUCKETS, "The maximum number of action buckets for a group has been exceeded - OFPGMFC_OUT_OF_BUCKETS");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_CHAINING_UNSUPPORTED, "Switch does not support groups that forward to groups - OFPGMFC_CHAINING_UNSUPPORTED");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_WATCH_UNSUPPORTED, "This group cannot watch the watch_port or watch_group specified - OFPGMFC_WATCH_UNSUPPORTED");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_LOOP, "Group entry would cause a loop - OFPGMFC_LOOP");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_UNKNOWN_GROUP, "Group not modified because a group MODIFY attempted to modify a non-existent group - OFPGMFC_UNKNOWN_GROUP");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_CHAINED_GROUP, "Group not deleted because another group is forwarding to it - OFPGMFC_CHAINED_GROUP");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_BAD_TYPE, "Unsupported or unknown group type - OFPGMFC_BAD_TYPE");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_BAD_COMMAND, "Unsupported or unknown command - OFPGMFC_BAD_COMMAND");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_BAD_BUCKET, "Error in bucket - OFPGMFC_BAD_BUCKET");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_BAD_WATCH, "Error in watch port/group - OFPGMFC_BAD_WATCH");
+    TYPE_ARRAY_ADD(ofp_group_mod_failed_code, OFPGMFC_EPERM, "Permissions error - OFPGMFC_EPERM");
+
+    // ofp_port_mod_failed_code
+    TYPE_ARRAY(ofp_port_mod_failed_code);
+    TYPE_ARRAY_ADD(ofp_port_mod_failed_code, OFPPMFC_BAD_PORT, "Specified port number does not exist - OFPPMFC_BAD_PORT");
+    TYPE_ARRAY_ADD(ofp_port_mod_failed_code, OFPPMFC_BAD_HW_ADDR, "Specified hardware address does not match the port number - OFPPMFC_BAD_HW_ADDR");
+    TYPE_ARRAY_ADD(ofp_port_mod_failed_code, OFPPMFC_BAD_CONFIG, "Specified config is invalid - OFPPMFC_BAD_CONFIG");
+    TYPE_ARRAY_ADD(ofp_port_mod_failed_code, OFPPMFC_BAD_ADVERTISE, "Specified advertise is invalid - OFPPMFC_BAD_ADVERTISE");
+    TYPE_ARRAY_ADD(ofp_port_mod_failed_code, OFPPMFC_EPERM, "Permissions error - OFPPMFC_EPERM");
+
+    // ofp_table_mod_failed_code
+    TYPE_ARRAY(ofp_table_mod_failed_code);
+    TYPE_ARRAY_ADD(ofp_table_mod_failed_code, OFPTMFC_BAD_TABLE, "Specified table does not exist - OFPTMFC_BAD_TABLE");
+    TYPE_ARRAY_ADD(ofp_table_mod_failed_code, OFPTMFC_BAD_CONFIG, "Specified config is invalid - OFPTMFC_BAD_CONFIG");
+    TYPE_ARRAY_ADD(ofp_table_mod_failed_code, OFPTMFC_EPERM, "Permissions error - OFPTMFC_EPERM");
+
+    // ofp_multipart_types
+    TYPE_ARRAY(ofp_multipart_types);
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_DESC, "Description of this OpenFlow switch - OFPMP_DESC");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_FLOW, "Individual flow statistics - OFPMP_FLOW");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_AGGREGATE, "Aggregate flow statistics - OFPMP_AGGREGATE");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_TABLE, "Flow table statistics - OFPMP_TABLE");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_PORT_STATS, "Port statistics - OFPMP_PORT_STATS");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_QUEUE, "Queue statistics for a port - OFPMP_QUEUE");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_GROUP, "Group counter statistics - OFPMP_GROUP");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_GROUP_DESC, "Group description statistics - OFPMP_GROUP_DESC");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_GROUP_FEATURES, "Group features - OFPMP_GROUP_FEATURES");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_METER, "Meter statistics - OFPMP_METER");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_METER_CONFIG, "Meter configuration - OFPMP_METER_CONFIG");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_METER_FEATURES, "Meter features - OFPMP_METER_FEATURES");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_TABLE_FEATURES, "Table features - OFPMP_TABLE_FEATURES");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_PORT_DESC, "Port description - OFPMP_PORT_DESC");
+    TYPE_ARRAY_ADD(ofp_multipart_types, OFPMP_EXPERIMENTER, "Experimenter extension - OFPMP_EXPERIMENTER");
+
+    // ofp_table_feature_prop_type
+    TYPE_ARRAY(ofp_table_feature_prop_type);
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_INSTRUCTIONS, "Instructions property - OFPTFPT_INSTRUCTIONS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_INSTRUCTIONS_MISS, "Instructions for table-miss - OFPTFPT_INSTRUCTIONS_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_NEXT_TABLES, "Next Table property - OFPTFPT_NEXT_TABLES");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_NEXT_TABLES_MISS, "Next Table for table-miss - OFPTFPT_NEXT_TABLES_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WRITE_ACTIONS, "Write Actions property - OFPTFPT_WRITE_ACTIONS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WRITE_ACTIONS_MISS, "Write Actions for table-miss - OFPTFPT_WRITE_ACTIONS_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_APPLY_ACTIONS, "Apply Actions property - OFPTFPT_APPLY_ACTIONS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_APPLY_ACTIONS_MISS, "Apply Actions for table-miss - OFPTFPT_APPLY_ACTIONS_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_MATCH, "Match property - OFPTFPT_MATCH");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WILDCARDS, "Wildcards property - OFPTFPT_WILDCARDS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WRITE_SETFIELD, "Write Set-Field property - OFPTFPT_WRITE_SETFIELD");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_WRITE_SETFIELD_MISS, "Write Set-Field for table-miss - OFPTFPT_WRITE_SETFIELD_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_APPLY_SETFIELD, "Apply Set-Field property - OFPTFPT_APPLY_SETFIELD");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_APPLY_SETFIELD_MISS, "Apply Set-Field for table-miss - OFPTFPT_APPLY_SETFIELD_MISS");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_EXPERIMENTER, "Experimenter property - OFPTFPT_EXPERIMENTER");
+    TYPE_ARRAY_ADD(ofp_table_feature_prop_type, OFPTFPT_EXPERIMENTER_MISS, "Experimenter for table-miss - OFPTFPT_EXPERIMENTER_MISS");
+
+    // ofp_queue_op_failed_code
+    TYPE_ARRAY(ofp_queue_op_failed_code);
+    TYPE_ARRAY_ADD(ofp_queue_op_failed_code, OFPQOFC_BAD_PORT, "Invalid port (or port does not exist) - OFPQOFC_BAD_PORT");
+    TYPE_ARRAY_ADD(ofp_queue_op_failed_code, OFPQOFC_BAD_QUEUE, "Queue does not exist - OFPQOFC_BAD_QUEUE");
+    TYPE_ARRAY_ADD(ofp_queue_op_failed_code, OFPQOFC_EPERM, "Permissions error - OFPQOFC_EPERM");
+
+    // ofp_switch_config_failed_code
+    TYPE_ARRAY(ofp_switch_config_failed_code);
+    TYPE_ARRAY_ADD(ofp_switch_config_failed_code, OFPSCFC_BAD_FLAGS, "Specified flags is invalid - OFPSCFC_BAD_FLAGS");
+    TYPE_ARRAY_ADD(ofp_switch_config_failed_code, OFPSCFC_BAD_LEN, "Specified len is invalid - OFPSCFC_BAD_LEN");
+    TYPE_ARRAY_ADD(ofp_switch_config_failed_code, OFPQCFC_EPERM, "Permissions error - OFPQCFC_EPERM");
+
+    // ofp_role_request_failed_code
+    TYPE_ARRAY(ofp_role_request_failed_code);
+    TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_STALE, "Stale Message: old generation_id - OFPRRFC_STALE");
+    TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_UNSUP, "Controller role change unsupported - OFPRRFC_UNSUP");
+    TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_BAD_ROLE, "Invalid role - OFPRRFC_BAD_ROLE");
+
+}
+
+
+void DissectorContext::setupFlags(void) {
+    // ofp_port_config
+    BITMAP_PART("ofp_port_config.OFPPC_PORT_DOWN", "Port is administratively down", 32, OFPPC_PORT_DOWN);
+    BITMAP_PART("ofp_port_config.OFPPC_NO_RECV", "Drop all packets received by port", 32, OFPPC_NO_RECV);
+    BITMAP_PART("ofp_port_config.OFPPC_NO_FWD", "Drop packets forwarded to port", 32, OFPPC_NO_FWD);
+    BITMAP_PART("ofp_port_config.OFPPC_NO_PACKET_IN", "Do not send packet-in msgs for port", 32, OFPPC_NO_PACKET_IN);
+    BITMAP_PART("ofp_port_config.RESERVED", "Reserved", 32, 0xffffff9a);
+
+    // ofp_port_state
+    BITMAP_PART("ofp_port_state.OFPPS_LINK_DOWN", "No physical link present", 32, OFPPS_LINK_DOWN);
+    BITMAP_PART("ofp_port_state.OFPPS_BLOCKED", "Port is blocked", 32, OFPPS_BLOCKED);
+    BITMAP_PART("ofp_port_state.OFPPS_LIVE", "Live for Fast Failover Group", 32, OFPPS_LIVE);
+    BITMAP_PART("ofp_port_state.RESERVED", "Reserved", 32, 0xfffffff8);
+
+    // ofp_port_features
+    BITMAP_PART("ofp_port_features.OFPPF_10MB_HD", "10 Mb half-duplex rate support", 32, OFPPF_10MB_HD);
+    BITMAP_PART("ofp_port_features.OFPPF_10MB_FD", "10 Mb full-duplex rate support", 32, OFPPF_10MB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_100MB_HD", "100 Mb half-duplex rate support", 32, OFPPF_100MB_HD);
+    BITMAP_PART("ofp_port_features.OFPPF_100MB_FD", "100 Mb full-duplex rate support", 32, OFPPF_100MB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_1GB_HD", "1 Gb half-duplex rate support", 32, OFPPF_1GB_HD);
+    BITMAP_PART("ofp_port_features.OFPPF_1GB_FD", "1 Gb full-duplex rate support", 32, OFPPF_1GB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_10GB_FD", "10 Gb full-duplex rate support", 32, OFPPF_10GB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_40GB_FD", "40 Gb full-duplex rate support", 32, OFPPF_40GB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_100GB_FD", "100 Gb full-duplex rate support", 32, OFPPF_100GB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_1TB_FD", "1 Tb full-duplex rate support", 32, OFPPF_1TB_FD);
+    BITMAP_PART("ofp_port_features.OFPPF_OTHER", "Other rate, not in the list", 32, OFPPF_OTHER);
+    BITMAP_PART("ofp_port_features.OFPPF_COPPER", "Copper medium", 32, OFPPF_COPPER);
+    BITMAP_PART("ofp_port_features.OFPPF_FIBER", "Fiber medium", 32, OFPPF_FIBER);
+    BITMAP_PART("ofp_port_features.OFPPF_AUTONEG", "Auto-negotiation", 32, OFPPF_AUTONEG);
+    BITMAP_PART("ofp_port_features.OFPPF_PAUSE", "Pause", 32, OFPPF_PAUSE);
+    BITMAP_PART("ofp_port_features.OFPPF_PAUSE_ASYM", "Asymmetric pause", 32, OFPPF_PAUSE_ASYM);
+    BITMAP_PART("ofp_port_features.RESERVED", "Reserved", 32, 0xffff0000);
+
+    // ofp_capabilities
+    BITMAP_PART("ofp_capabilities.OFPC_FLOW_STATS", "Flow statistics", 32, OFPC_FLOW_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_TABLE_STATS", "Table statistics", 32, OFPC_TABLE_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_PORT_STATS", "Port statistics", 32, OFPC_PORT_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_GROUP_STATS", "Group statistics", 32, OFPC_GROUP_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_IP_REASM", "Can reassemble IP fragments", 32, OFPC_IP_REASM);
+    BITMAP_PART("ofp_capabilities.OFPC_QUEUE_STATS", "Queue statistics", 32, OFPC_QUEUE_STATS);
+    BITMAP_PART("ofp_capabilities.OFPC_PORT_BLOCKED", "Switch will block looping ports", 32, OFPC_PORT_BLOCKED);
+    BITMAP_PART("ofp_capabilities.RESERVED", "Reserved", 32, 0xfffffe90);
+
+    // ofp_config_flags
+    BITMAP_PART("ofp_config_flags.OFPC_FRAG_DROP", "Drop fragments", 16, OFPC_FRAG_DROP);
+    BITMAP_PART("ofp_config_flags.OFPC_FRAG_REASM", "Reassemble (only if OFPC_IP_REASM set)", 16, OFPC_FRAG_REASM);
+    BITMAP_PART("ofp_config_flags.OFPC_INVALID_TTL_TO_CONTROLLER", "Send packets with invalid TTL to the controller", 16, OFPC_INVALID_TTL_TO_CONTROLLER);
+    BITMAP_PART("ofp_config_flags.RESERVED", "Reserved", 16, 0xfff8);
+
+    // ofp_table_config
+    BITMAP_PART("ofp_table_config.OFPTC_TABLE_MISS_CONTINUE", "Continue to the next table in the pipeline (OpenFlow 1.0 behavior)", 32, OFPTC_TABLE_MISS_CONTINUE);
+    BITMAP_PART("ofp_table_config.OFPTC_TABLE_MISS_DROP", "Drop the packet", 32, OFPTC_TABLE_MISS_DROP);
+    BITMAP_PART("ofp_table_config.RESERVED", "Reserved", 32, 0xfffffffc);
+
+    // ofp_flow_mod_flags
+    BITMAP_PART("ofp_flow_mod_flags.OFPFF_SEND_FLOW_REM", "Send flow removed message when flow expires or is deleted", 16, OFPFF_SEND_FLOW_REM);
+    BITMAP_PART("ofp_flow_mod_flags.OFPFF_CHECK_OVERLAP", "Check for overlapping entries first", 16, OFPFF_CHECK_OVERLAP);
+    BITMAP_PART("ofp_flow_mod_flags.OFPFF_RESET_COUNTS", "Reset flow packet and byte counts", 16, OFPFF_RESET_COUNTS);
+    BITMAP_PART("ofp_flow_mod_flags.RESERVED", "Reserved", 16, 0xfff8);
+
+    // ofp_group_capabilities
+    BITMAP_PART("ofp_group_capabilities.OFPGFC_SELECT_WEIGHT", "Support weight for select groups", 32, OFPGFC_SELECT_WEIGHT);
+    BITMAP_PART("ofp_group_capabilities.OFPGFC_SELECT_LIVENESS", "Support liveness for select groups", 32, OFPGFC_SELECT_LIVENESS);
+    BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING", "Support chaining groups", 32, OFPGFC_CHAINING);
+    BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING_CHECKS", "Check chaining for loops and delete", 32, OFPGFC_CHAINING_CHECKS);
+    BITMAP_PART("ofp_group_capabilities.RESERVED", "Reserved", 32, 0xfffffff0);
+
+    // ofp_multipart_request_flags
+    BITMAP_PART("ofp_multipart_request_flags.OFPMPF_REQ_MORE", "More requests to follow", 16, OFPMPF_REQ_MORE);
+    BITMAP_PART("ofp_multipart_request_flags.RESERVED", "Reserved", 16, 0xfffe);
+
+    // ofp_multipart_reply_flags
+    BITMAP_PART("ofp_multipart_reply_flags.OFPMPF_REPLY_MORE", "More replies to follow", 16, OFPMPF_REPLY_MORE);
+    BITMAP_PART("ofp_multipart_reply_flags.RESERVED", "Reserved", 16, 0xfffe);
+
+}

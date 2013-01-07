@@ -1,7 +1,7 @@
 # This is a very nasty code generator. It will get better someday.
 
 IDENT = " " * 4
-OFSPEC = "ofspec"
+OFSPEC = "of13"
 
 class Enum:
     def __init__(self, name, bitmap=False, length=32):

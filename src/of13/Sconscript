@@ -1,0 +1,7 @@
+# Copyright (c) CPqD
+
+Import('env')
+
+obj = env.SharedObject('openflow-130.cpp')
+
+Return('obj')

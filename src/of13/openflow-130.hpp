@@ -1,22 +1,21 @@
 /* Copyright(c) 2010-2011 The Board of Trustees of The Leland Stanford Junior University */
 
-#ifndef HDR_OPENFLOW_120_HPP
-#define HDR_OPENFLOW_120_HPP
+#ifndef HDR_OPENFLOW_130_HPP
+#define HDR_OPENFLOW_130_HPP
 
-#define OFP_120_NS openflow_120
+#define OFP_130_NS openflow_130
 
 #include <string.h>
 #include <openflow-common.hpp>
 #include <util/FieldManager.hpp>
 
-
-#define PROTO_TAG_OPENFLOW_VER "OFP 1.2"
+#define PROTO_TAG_OPENFLOW_VER "OFP 1.3"
 
 // Wireshark isn't a C++ application, so don't try
 // to initialize C++ objects before main()
 
-namespace openflow_120 {
-    static const guint16 gVersion = 0x03;
+namespace openflow_130 {
+    static const guint16 gVersion = 0x04;
     
     // Importing from epan/tfs.h wreaks havoc
     const true_false_string tfs_set_notset = {"Set", "Not set"};
@@ -42,8 +41,10 @@ namespace openflow_120 {
         void dissectFeaturesRequest();
         void dissect_ofp_switch_features();
         void dissect_ofp_switch_config();
-        void dissectStatsRequest();
-        void dissectStatsReply();
+        void dissectMultipartRequest();
+        void dissectMultipartReply();
+        void dissect_ofp_table_features(proto_tree* parent);
+        void dissect_ofp_table_feature_prop(proto_tree* parent);
         void dissect_ofp_portStatus();
         void dissect_ofp_flow_mod();
         void dissect_ofp_table_mod();
@@ -55,6 +56,7 @@ namespace openflow_120 {
         void dissect_ofp_action(proto_tree *);
         void dissectGroupBucket(proto_tree *);
         void dissect_ofp_oxm(proto_tree *, guint32 length);
+        void dissect_ofp_oxm_header(proto_tree *tree);
         int dissect_ofp_oxm_field(proto_tree*);
         void dissect_ofp_packet_in();
         void dissect_ofp_packet_out();
@@ -69,13 +71,13 @@ namespace openflow_120 {
         tvbuff_t *_tvb;
         packet_info *_pinfo;
         proto_tree *_tree;
-        dissector_handle_t _ether_handle;
+	dissector_handle_t _ether_handle;
         guint32 _offset;
         guint32 _rawLen;
         guint16 _oflen;
         proto_tree *_curOFPSubtree;
         static DissectorContext *mSingle;
-
+        
         // Generated code
         GArray* ofp_type;
         GArray* ofp_port_no;
@@ -92,7 +94,6 @@ namespace openflow_120 {
         GArray* ofp_group;
         GArray* ofp_group_mod_command;
         GArray* ofp_group_type;
-        GArray* ofp_stats_types;
         GArray* ofp_controller_role;
         GArray* ofp_packet_in_reason;
         GArray* ofp_flow_removed_reason;
@@ -107,9 +108,11 @@ namespace openflow_120 {
         GArray* ofp_group_mod_failed_code;
         GArray* ofp_port_mod_failed_code;
         GArray* ofp_table_mod_failed_code;
+        GArray* ofp_multipart_types;
+        GArray* ofp_table_feature_prop_type;
         GArray* ofp_queue_op_failed_code;
         GArray* ofp_switch_config_failed_code;
-        GArray* ofp_role_request_failed_code;        
+        GArray* ofp_role_request_failed_code;
     };
 
     void init(int);

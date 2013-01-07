@@ -6,6 +6,7 @@
 #include <of10/openflow-100.hpp>
 #include <of11/openflow-110.hpp>
 #include <of12/openflow-120.hpp>
+#include <of13/openflow-130.hpp>
 
 #include <glib.h>
 #include <epan/packet.h>
@@ -38,6 +39,9 @@ dissect_openflow (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     case OFP_120_NS::gVersion:
       OFP_120_NS::Context->dissect(tvb, pinfo, tree);
       break;
+    case OFP_130_NS::gVersion:
+      OFP_130_NS::Context->dissect(tvb, pinfo, tree);
+      break;      
     default:
       return;
     }
@@ -53,10 +57,11 @@ proto_reg_handoff_openflow (void)
     data_handle = find_dissector("data");
     openflow_handle = create_dissector_handle(dissect_openflow, proto_openflow);
     dissector_add("tcp.port", OFP_TCP_PORT, openflow_handle);
-
+    dissector_add("tcp.port", 43984, openflow_handle);
     OFP_100_NS::Context->setHandles(data_handle, openflow_handle);
     OFP_110_NS::Context->setHandles(data_handle, openflow_handle);
     OFP_120_NS::Context->setHandles(data_handle, openflow_handle);
+    OFP_130_NS::Context->setHandles(data_handle, openflow_handle);
     }
   }
 
@@ -68,6 +73,7 @@ proto_register_openflow (void)
   OFP_100_NS::init(proto_openflow);
   OFP_110_NS::init(proto_openflow);
   OFP_120_NS::init(proto_openflow);
-
+  OFP_130_NS::init(proto_openflow);
+  
   register_dissector("openflow", dissect_openflow, proto_openflow);
   }

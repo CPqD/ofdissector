@@ -5,6 +5,16 @@
 #include <string.h> // For memset()
 #include <iostream>
 
+void addValueString(GArray *array, guint32 value, const gchar *str) {
+    value_string vs;
+    memset(&vs, 0, sizeof vs);
+
+    vs.value = value;
+    vs.strptr = str;
+
+    g_array_append_val(array, vs);
+}
+
 FieldManager::FieldManager (int proto, std::string key_prefix) : mProto(proto), mKeyPrefix(key_prefix) {
     this->mFieldArray = g_array_new(FALSE, FALSE, sizeof(hf_register_info));
     this->mTreeArray = g_array_new(FALSE, FALSE, sizeof(gint*));
@@ -70,5 +80,18 @@ proto_item* FieldManager::addBoolean (proto_tree *tree, std::string key, tvbuff_
     if (this->mFields.find(key) != this->mFields.end())
         return proto_tree_add_boolean(tree, *(this->mFields[key]), tvb, start, len, value);
     else
+        std::cerr << "Couldn't find key: " << key << std::endl;
+}
+
+void FieldManager::addDissector (proto_tree *tree, std::string key, tvbuff_t *tvb, packet_info *pinfo, dissector_handle_t handle, guint32 start, guint32 len) {
+    // TODO: move this check to a function
+    if (this->mFields.find(key) != this->mFields.end()) {
+	tvbuff_t *next_tvb;
+
+	/* Create the tvbuffer for the next dissector */
+        next_tvb = tvb_new_subset(tvb, start, len, len);
+	/* call the next dissector */
+	call_dissector(handle, next_tvb, pinfo, tree);
+    } else
         std::cerr << "Couldn't find key: " << key << std::endl;
 }

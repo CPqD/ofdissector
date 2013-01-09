@@ -16,7 +16,7 @@
 
 namespace openflow_130 {
     static const guint16 gVersion = 0x04;
-    
+
     // Importing from epan/tfs.h wreaks havoc
     const true_false_string tfs_set_notset = {"Set", "Not set"};
 
@@ -27,22 +27,22 @@ namespace openflow_130 {
         static void prepDissect(tvbuff_t *, packet_info *, proto_tree *);
         void dissect(tvbuff_t *, packet_info *, proto_tree *);
         static guint getMessageLen(packet_info *, tvbuff_t *, int);
-        
+
     private:
         DissectorContext(int);
 
         void setupCodes(void);
         void setupFlags(void);
         void setupFields(void);
-        
+
         void dispatchMessage(tvbuff_t *, packet_info *, proto_tree *);
         void dissect_ofp_error();
         void dissect_ofp_echo();
         void dissectFeaturesRequest();
         void dissect_ofp_switch_features();
         void dissect_ofp_switch_config();
-        void dissectMultipartRequest();
-        void dissectMultipartReply();
+        void dissect_ofp_multipart_request();
+        void dissect_ofp_multipart_reply();
         void dissect_ofp_table_features(proto_tree* parent);
         void dissect_ofp_table_feature_prop(proto_tree* parent);
         void dissect_ofp_portStatus();
@@ -61,7 +61,9 @@ namespace openflow_130 {
         void dissect_ofp_packet_in();
         void dissect_ofp_packet_out();
         void dissect_ofp_role_request();
-        
+        void dissect_ofp_get_async_reply();
+
+
         dissector_handle_t mDataHandle;
         dissector_handle_t mOpenflowHandle;
         int mProtoOpenflow;
@@ -77,7 +79,7 @@ namespace openflow_130 {
         guint16 _oflen;
         proto_tree *_curOFPSubtree;
         static DissectorContext *mSingle;
-        
+
         // Generated code
         GArray* ofp_type;
         GArray* ofp_port_no;

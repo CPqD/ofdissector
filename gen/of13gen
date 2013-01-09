@@ -468,9 +468,8 @@ void DissectorContext::setupFlags(void) {
     BITMAP_PART("ofp_config_flags.RESERVED", "Reserved", 16, 0xfff8);
 
     // ofp_table_config
-    BITMAP_PART("ofp_table_config.OFPTC_TABLE_MISS_CONTINUE", "Continue to the next table in the pipeline (OpenFlow 1.0 behavior)", 32, OFPTC_TABLE_MISS_CONTINUE);
-    BITMAP_PART("ofp_table_config.OFPTC_TABLE_MISS_DROP", "Drop the packet", 32, OFPTC_TABLE_MISS_DROP);
-    BITMAP_PART("ofp_table_config.RESERVED", "Reserved", 32, 0xfffffffc);
+    
+    BITMAP_PART("ofp_table_config.RESERVED", "Reserved", 32, 0xffffffff);
 
     // ofp_flow_mod_flags
     BITMAP_PART("ofp_flow_mod_flags.OFPFF_SEND_FLOW_REM", "Send flow removed message when flow expires or is deleted", 16, OFPFF_SEND_FLOW_REM);

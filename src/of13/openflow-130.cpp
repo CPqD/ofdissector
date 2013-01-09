@@ -252,11 +252,11 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
                     break;
 
                 case OFPT_MULTIPART_REQUEST:
-                    this->dissectMultipartRequest();
+                    this->dissect_ofp_multipart_request();
                     break;
 
                 case OFPT_MULTIPART_REPLY:
-                    this->dissectMultipartReply();
+                    this->dissect_ofp_multipart_reply();
                     break;
 
                 case OFPT_BARRIER_REQUEST:
@@ -271,7 +271,12 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
                 case OFPT_ROLE_REQUEST:
                 case OFPT_ROLE_REPLY:
                     this->dissect_ofp_role_request();
-                    break;                        
+                    break;
+
+                case OFPT_GET_ASYNC_REPLY:
+                case OFPT_SET_ASYNC:
+                    this->dissect_ofp_get_async_reply();
+                    break;
 
                 default:
                     IGNORE; // We don't know what to do
@@ -372,22 +377,6 @@ void DissectorContext::dissect_ofp_switch_config() {
     ADD_CHILD(tree, "ofp_switch_config.miss_send_len", 2);
 }
 
-void DissectorContext::dissectMultipartRequest() {
-    ADD_TREE(tree, "ofp_multipart_request");
-
-    ADD_CHILD(tree, "ofp_multipart_request.type", 2);
-
-    READ_UINT16(flags);
-    ADD_SUBTREE(flags_tree, tree, "ofp_multipart_request.flags", 2);
-    ADD_BOOLEAN(flags_tree, "ofp_multipart_request_flags.OFPMPF_REQ_MORE", 2, flags);
-    CONSUME_BYTES(2);
-
-    ADD_CHILD(tree, "padding", 4);
-
-    if (this->_offset < this->_oflen)
-        ADD_CHILD(tree, "ofp_multipart_request.body", this->_oflen - this->_offset);
-}
-
 void DissectorContext::dissect_ofp_table_feature_prop(proto_tree* parent) {
     READ_UINT16(type);
     this->_offset += 2; // read ahead
@@ -397,7 +386,7 @@ void DissectorContext::dissect_ofp_table_feature_prop(proto_tree* parent) {
     ADD_SUBTREE(tree, parent, "ofp_table_feature_prop", length + OFP_MATCH_OXM_PADDING(length));
     ADD_CHILD(tree, "ofp_table_feature_prop.type", 2);
     ADD_CHILD(tree, "ofp_table_feature_prop.length", 2);
-    
+
     if (type == OFPTFPT_INSTRUCTIONS || type == OFPTFPT_INSTRUCTIONS_MISS) {
         guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_instructions) + length;
         while (this->_offset < end)
@@ -409,15 +398,14 @@ void DissectorContext::dissect_ofp_table_feature_prop(proto_tree* parent) {
             ADD_CHILD(tree, "ofp_table_feature_prop_next_tables.next_table_ids", 1);
         }
     }
-    else if (type == OFPTFPT_WRITE_ACTIONS || 
+    else if (type == OFPTFPT_WRITE_ACTIONS ||
              type == OFPTFPT_WRITE_ACTIONS_MISS ||
-             type == OFPTFPT_APPLY_ACTIONS || 
+             type == OFPTFPT_APPLY_ACTIONS ||
              type == OFPTFPT_APPLY_ACTIONS_MISS) {
         guint32 end = this->_offset - sizeof(struct ofp_table_feature_prop_actions) + length;
         while (this->_offset < end)
             this->dissect_ofp_action(tree);
     }
-    
     else if (type == OFPTFPT_MATCH ||
              type == OFPTFPT_WILDCARDS ||
              type == OFPTFPT_WRITE_SETFIELD ||
@@ -433,7 +421,7 @@ void DissectorContext::dissect_ofp_table_feature_prop(proto_tree* parent) {
     else { // If we don't know what to do, discard
         CONSUME_BYTES(length);
     }
-    
+
     ADD_CHILD(tree, "padding", OFP_MATCH_OXM_PADDING(length));
 }
 
@@ -455,7 +443,32 @@ void DissectorContext::dissect_ofp_table_features(proto_tree* parent) {
     }
 }
 
-void DissectorContext::dissectMultipartReply() {
+void DissectorContext::dissect_ofp_multipart_request() {
+    ADD_TREE(tree, "ofp_multipart_request");
+
+    READ_UINT16(type);
+    ADD_CHILD(tree, "ofp_multipart_request.type", 2);
+
+    READ_UINT16(flags);
+    ADD_SUBTREE(flags_tree, tree, "ofp_multipart_request.flags", 2);
+    ADD_BOOLEAN(flags_tree, "ofp_multipart_request_flags.OFPMPF_REQ_MORE", 2, flags);
+    CONSUME_BYTES(2);
+
+    ADD_CHILD(tree, "padding", 4);
+
+    switch (type) {
+        case OFPMP_TABLE_FEATURES:
+            while ((this->_oflen - this->_offset) > 0) {
+                this->dissect_ofp_table_features(tree);
+            }
+            break;
+        default:
+            ADD_CHILD(tree, "ofp_multipart_reply.body", this->_oflen - this->_offset);
+            break;
+    }
+}
+
+void DissectorContext::dissect_ofp_multipart_reply() {
     ADD_TREE(tree, "ofp_multipart_reply");
 
     READ_UINT16(type);
@@ -533,7 +546,7 @@ void DissectorContext::dissect_ofp_packet_in() {
     ADD_CHILD(tree, "ofp_packet_in.total_len", 2);
     ADD_CHILD(tree, "ofp_packet_in.reason", 1);
     ADD_CHILD(tree, "ofp_packet_in.table_id", 1);
-    ADD_CHILD(tree, "ofp_packet_in.cookie", 8);    
+    ADD_CHILD(tree, "ofp_packet_in.cookie", 8);
 
     ADD_SUBTREE(match_tree, tree, "ofp_packet_in.match", this->_oflen - this->_offset);
     this->dissect_ofp_match(match_tree);
@@ -560,10 +573,13 @@ void DissectorContext::dissect_ofp_packet_out() {
         dissect_ofp_action(tree);
     }
 
+    // TODO: should we check to see it it's really Ethernet?
     if (this->_oflen - this->_offset > 0) {
-	ADD_DISSECTOR(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
-    } else
-	ADD_CHILD(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
+	   ADD_DISSECTOR(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
+    }
+    else {
+	   ADD_CHILD(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
+    }
 }
 
 void DissectorContext::dissectGroupMod() {
@@ -593,8 +609,6 @@ void DissectorContext::dissect_ofp_table_mod() {
     READ_UINT32(config);
     ADD_SUBTREE(config_tree, tree, "ofp_table_mod.config", 4);
     ADD_BOOLEAN(config_tree, "ofp_table_config.RESERVED", 4, config);
-    ADD_BOOLEAN(config_tree, "ofp_table_config.OFPTC_TABLE_MISS_CONTINUE", 4, config);
-    ADD_BOOLEAN(config_tree, "ofp_table_config.OFPTC_TABLE_MISS_DROP", 4, config);
     CONSUME_BYTES(4);
 }
 
@@ -799,7 +813,7 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
     // If we have just a header, stop here
     if (len <= 4)
         return;
-        
+
     switch (type) {
         case OFPAT_OUTPUT:
             ADD_CHILD(tree, "ofp_action_output.port", 4);
@@ -881,6 +895,60 @@ void DissectorContext::dissect_ofp_role_request() {
     ADD_CHILD(tree, "ofp_role_request.role", 4);
     ADD_CHILD(tree, "padding", 4);
     ADD_CHILD(tree, "ofp_role_request.generation_id", 8);
+}
+
+void DissectorContext::dissect_ofp_get_async_reply() {
+    ADD_TREE(tree, "ofp_async_config");
+
+    READ_UINT32(packet_in_eq_ms);
+    ADD_SUBTREE(packet_in_eq_ms_tree, tree, "ofp_async_config.packet_in_mask-eq_ms", 4);
+    ADD_BOOLEAN(packet_in_eq_ms_tree, "ofp_packet_in_reason_bitmask.OFPR_NO_MATCH", 4, packet_in_eq_ms);
+    ADD_BOOLEAN(packet_in_eq_ms_tree, "ofp_packet_in_reason_bitmask.OFPR_ACTION", 4, packet_in_eq_ms);
+    ADD_BOOLEAN(packet_in_eq_ms_tree, "ofp_packet_in_reason_bitmask.OFPR_INVALID_TTL", 4, packet_in_eq_ms);
+    ADD_BOOLEAN(packet_in_eq_ms_tree, "ofp_packet_in_reason_bitmask.RESERVED", 4, packet_in_eq_ms);
+    CONSUME_BYTES(4);
+
+    READ_UINT32(packet_in_sl);
+    ADD_SUBTREE(packet_in_sl_tree, tree, "ofp_async_config.packet_in_mask-sl", 4);
+    ADD_BOOLEAN(packet_in_sl_tree, "ofp_packet_in_reason_bitmask.OFPR_NO_MATCH", 4, packet_in_sl);
+    ADD_BOOLEAN(packet_in_sl_tree, "ofp_packet_in_reason_bitmask.OFPR_ACTION", 4, packet_in_sl);
+    ADD_BOOLEAN(packet_in_sl_tree, "ofp_packet_in_reason_bitmask.OFPR_INVALID_TTL", 4, packet_in_sl);
+    ADD_BOOLEAN(packet_in_sl_tree, "ofp_packet_in_reason_bitmask.RESERVED", 4, packet_in_sl);
+    CONSUME_BYTES(4);
+
+    READ_UINT32(port_status_eq_ms);
+    ADD_SUBTREE(port_status_eq_ms_tree, tree, "ofp_async_config.port_status_mask-eq_ms", 4);
+    ADD_BOOLEAN(port_status_eq_ms_tree, "ofp_port_reason_bitmask.OFPPR_ADD", 4, port_status_eq_ms);
+    ADD_BOOLEAN(port_status_eq_ms_tree, "ofp_port_reason_bitmask.OFPPR_DELETE", 4, port_status_eq_ms);
+    ADD_BOOLEAN(port_status_eq_ms_tree, "ofp_port_reason_bitmask.OFPPR_MODIFY", 4, port_status_eq_ms);
+    ADD_BOOLEAN(port_status_eq_ms_tree, "ofp_port_reason_bitmask.RESERVED", 4, port_status_eq_ms);
+    CONSUME_BYTES(4);
+
+    READ_UINT32(port_status_sl);
+    ADD_SUBTREE(port_status_sl_tree, tree, "ofp_async_config.port_status_mask-sl", 4);
+    ADD_BOOLEAN(port_status_sl_tree, "ofp_port_reason_bitmask.OFPPR_ADD", 4, port_status_sl);
+    ADD_BOOLEAN(port_status_sl_tree, "ofp_port_reason_bitmask.OFPPR_DELETE", 4, port_status_sl);
+    ADD_BOOLEAN(port_status_sl_tree, "ofp_port_reason_bitmask.OFPPR_MODIFY", 4, port_status_sl);
+    ADD_BOOLEAN(port_status_sl_tree, "ofp_port_reason_bitmask.RESERVED", 4, port_status_sl);
+    CONSUME_BYTES(4);
+
+    READ_UINT32(flow_removed_eq_ms);
+    ADD_SUBTREE(flow_removed_eq_ms_tree, tree, "ofp_async_config.flow_removed_mask-eq_ms", 4);
+    ADD_BOOLEAN(flow_removed_eq_ms_tree, "ofp_flow_removed_reason_bitmask.OFPRR_IDLE_TIMEOUT", 4, flow_removed_eq_ms);
+    ADD_BOOLEAN(flow_removed_eq_ms_tree, "ofp_flow_removed_reason_bitmask.OFPRR_HARD_TIMEOUT", 4, flow_removed_eq_ms);
+    ADD_BOOLEAN(flow_removed_eq_ms_tree, "ofp_flow_removed_reason_bitmask.OFPRR_DELETE", 4, flow_removed_eq_ms);
+    ADD_BOOLEAN(flow_removed_eq_ms_tree, "ofp_flow_removed_reason_bitmask.OFPRR_GROUP_DELETE", 4, flow_removed_eq_ms);
+    ADD_BOOLEAN(flow_removed_eq_ms_tree, "ofp_flow_removed_reason_bitmask.RESERVED", 4, flow_removed_eq_ms);
+    CONSUME_BYTES(4);
+
+    READ_UINT32(flow_removed_sl);
+    ADD_SUBTREE(flow_removed_sl_tree, tree, "ofp_async_config.flow_removed_mask-sl", 4);
+    ADD_BOOLEAN(flow_removed_sl_tree, "ofp_flow_removed_reason_bitmask.OFPRR_IDLE_TIMEOUT", 4, flow_removed_sl);
+    ADD_BOOLEAN(flow_removed_sl_tree, "ofp_flow_removed_reason_bitmask.OFPRR_HARD_TIMEOUT", 4, flow_removed_sl);
+    ADD_BOOLEAN(flow_removed_sl_tree, "ofp_flow_removed_reason_bitmask.OFPRR_DELETE", 4, flow_removed_sl);
+    ADD_BOOLEAN(flow_removed_sl_tree, "ofp_flow_removed_reason_bitmask.OFPRR_GROUP_DELETE", 4, flow_removed_sl);
+    ADD_BOOLEAN(flow_removed_sl_tree, "ofp_flow_removed_reason_bitmask.RESERVED", 4, flow_removed_sl);
+    CONSUME_BYTES(4);
 }
 
 void DissectorContext::setupFields() {
@@ -1069,6 +1137,15 @@ void DissectorContext::setupFields() {
     TREE_FIELD("ofp_role_request", "Role request");
     FIELD("ofp_role_request.role", "Role", FT_UINT32, BASE_HEX, VALUES(ofp_controller_role), NO_MASK);
     FIELD("ofp_role_request.generation_id", "Generation ID", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+
+    // ofp_async_config
+    TREE_FIELD("ofp_async_config", "Async config");
+    BITMAP_FIELD("ofp_async_config.packet_in_mask-eq_ms", "Packet In Mask (for equal, master)", FT_UINT32);
+    BITMAP_FIELD("ofp_async_config.packet_in_mask-sl", "Packet In Mask (for slave)", FT_UINT32);
+    BITMAP_FIELD("ofp_async_config.port_status_mask-eq_ms", "Port Status Mask (for equal, master)", FT_UINT32);
+    BITMAP_FIELD("ofp_async_config.port_status_mask-sl", "Port Status Mask (for slave)", FT_UINT32);
+    BITMAP_FIELD("ofp_async_config.flow_removed_mask-eq_ms", "Flow Removed Mask (for equal, master)", FT_UINT32);
+    BITMAP_FIELD("ofp_async_config.flow_removed_mask-sl", "Flow Removed Mask (for slave)", FT_UINT32);
 }
 
 // Generated code
@@ -1506,9 +1583,8 @@ void DissectorContext::setupFlags(void) {
     BITMAP_PART("ofp_config_flags.RESERVED", "Reserved", 16, 0xfff8);
 
     // ofp_table_config
-    BITMAP_PART("ofp_table_config.OFPTC_TABLE_MISS_CONTINUE", "Continue to the next table in the pipeline (OpenFlow 1.0 behavior)", 32, OFPTC_TABLE_MISS_CONTINUE);
-    BITMAP_PART("ofp_table_config.OFPTC_TABLE_MISS_DROP", "Drop the packet", 32, OFPTC_TABLE_MISS_DROP);
-    BITMAP_PART("ofp_table_config.RESERVED", "Reserved", 32, 0xfffffffc);
+
+    BITMAP_PART("ofp_table_config.RESERVED", "Reserved", 32, 0xffffffff);
 
     // ofp_flow_mod_flags
     BITMAP_PART("ofp_flow_mod_flags.OFPFF_SEND_FLOW_REM", "Send flow removed message when flow expires or is deleted", 16, OFPFF_SEND_FLOW_REM);
@@ -1523,6 +1599,25 @@ void DissectorContext::setupFlags(void) {
     BITMAP_PART("ofp_group_capabilities.OFPGFC_CHAINING_CHECKS", "Check chaining for loops and delete", 32, OFPGFC_CHAINING_CHECKS);
     BITMAP_PART("ofp_group_capabilities.RESERVED", "Reserved", 32, 0xfffffff0);
 
+    // ofp_packet_in_reason_bitmask
+    BITMAP_PART("ofp_packet_in_reason_bitmask.OFPR_NO_MATCH", "No matching flow", 32, 1 << OFPR_NO_MATCH);
+    BITMAP_PART("ofp_packet_in_reason_bitmask.OFPR_ACTION", "Action explicitly output to controller", 32, 1 << OFPR_ACTION);
+    BITMAP_PART("ofp_packet_in_reason_bitmask.OFPR_INVALID_TTL", "Packet has invalid TTL", 32, 1 << OFPR_INVALID_TTL);
+    BITMAP_PART("ofp_packet_in_reason_bitmask.RESERVED", "Reserved", 32, 0xfffffff8);
+
+    // ofp_flow_removed_reason_bitmask
+    BITMAP_PART("ofp_flow_removed_reason_bitmask.OFPRR_IDLE_TIMEOUT", "Flow idle time exceeded idle_timeout", 32, 1 << OFPRR_IDLE_TIMEOUT);
+    BITMAP_PART("ofp_flow_removed_reason_bitmask.OFPRR_HARD_TIMEOUT", "Time exceeded hard_timeout", 32, 1 << OFPRR_HARD_TIMEOUT);
+    BITMAP_PART("ofp_flow_removed_reason_bitmask.OFPRR_DELETE", "Evicted by a DELETE flow mod", 32, 1 << OFPRR_DELETE);
+    BITMAP_PART("ofp_flow_removed_reason_bitmask.OFPRR_GROUP_DELETE", "Group was removed", 32, 1 << OFPRR_GROUP_DELETE);
+    BITMAP_PART("ofp_flow_removed_reason_bitmask.RESERVED", "Reserved", 32, 0xfffffff0);
+
+    // ofp_port_reason_bitmask
+    BITMAP_PART("ofp_port_reason_bitmask.OFPPR_ADD", "The port was added", 32, 1 << OFPPR_ADD);
+    BITMAP_PART("ofp_port_reason_bitmask.OFPPR_DELETE", "The port was removed", 32, 1 << OFPPR_DELETE);
+    BITMAP_PART("ofp_port_reason_bitmask.OFPPR_MODIFY", "Some attribute of the port has changed", 32, 1 << OFPPR_MODIFY);
+    BITMAP_PART("ofp_port_reason_bitmask.RESERVED", "Reserved", 32, 0xfffffff8);
+
     // ofp_multipart_request_flags
     BITMAP_PART("ofp_multipart_request_flags.OFPMPF_REQ_MORE", "More requests to follow", 16, OFPMPF_REQ_MORE);
     BITMAP_PART("ofp_multipart_request_flags.RESERVED", "Reserved", 16, 0xfffe);
@@ -1530,5 +1625,7 @@ void DissectorContext::setupFlags(void) {
     // ofp_multipart_reply_flags
     BITMAP_PART("ofp_multipart_reply_flags.OFPMPF_REPLY_MORE", "More replies to follow", 16, OFPMPF_REPLY_MORE);
     BITMAP_PART("ofp_multipart_reply_flags.RESERVED", "Reserved", 16, 0xfffe);
+
 }
+
 }

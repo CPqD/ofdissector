@@ -86,12 +86,13 @@ proto_item* FieldManager::addBoolean (proto_tree *tree, std::string key, tvbuff_
 void FieldManager::addDissector (proto_tree *tree, std::string key, tvbuff_t *tvb, packet_info *pinfo, dissector_handle_t handle, guint32 start, guint32 len) {
     // TODO: move this check to a function
     if (this->mFields.find(key) != this->mFields.end()) {
-	tvbuff_t *next_tvb;
+    	tvbuff_t *next_tvb;
 
-	/* Create the tvbuffer for the next dissector */
+    	/* Create the tvbuffer for the next dissector */
         next_tvb = tvb_new_subset(tvb, start, len, len);
-	/* call the next dissector */
-	call_dissector(handle, next_tvb, pinfo, tree);
-    } else
+    	/* call the next dissector */
+    	call_dissector(handle, next_tvb, pinfo, tree);
+    } else {
         std::cerr << "Couldn't find key: " << key << std::endl;
+    }
 }

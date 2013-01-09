@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 {
     MESSAGE(msg0);
     PACK(msg0, "ofp_multipart_reply.header.version", OFP_VERSION, UINT8);
-    PACK(msg0, "ofp_multipart_reply.header.type", OFPT_MULTIPART_REPLY, UINT8);
+    PACK(msg0, "ofp_multipart_reply.header.type", OFPT_MULTIPART_REQUEST, UINT8);
     PACK(msg0, "ofp_multipart_reply.header.length", 0, UINT16);
     PACK(msg0, "ofp_multipart_reply.header.xid", 0xabababab, UINT32);
     PACK(msg0, "ofp_multipart_reply.type", OFPMP_TABLE_FEATURES, UINT16);
@@ -124,14 +124,14 @@ int main(int argc, char *argv[])
             PACK(msg0, "ofp_multipart_reply.body[0][1].type", OFPIT_GOTO_TABLE, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[0][1].length", 4, UINT16);
         PADDING(msg0, OFP_MATCH_OXM_PADDING(12));
-        
+
         PACK(msg0, "ofp_multipart_reply.body[1].type", OFPTFPT_NEXT_TABLES, UINT16);
         PACK(msg0, "ofp_multipart_reply.body[1].length", 7, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[1][0]", 2, UINT8);
             PACK(msg0, "ofp_multipart_reply.body[1][2]", 12, UINT8);
             PACK(msg0, "ofp_multipart_reply.body[1][2]", 22, UINT8);
         PADDING(msg0, OFP_MATCH_OXM_PADDING(7));
-        
+
         PACK(msg0, "ofp_multipart_reply.body[2].type", OFPTFPT_WRITE_ACTIONS_MISS, UINT16);
         PACK(msg0, "ofp_multipart_reply.body[2].length", 16, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[2][0].type", OFPAT_OUTPUT, UINT16);
@@ -141,13 +141,13 @@ int main(int argc, char *argv[])
             PACK(msg0, "ofp_multipart_reply.body[2][2].type", OFPAT_POP_VLAN, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[2][2].length", 4, UINT16);
         PADDING(msg0, OFP_MATCH_OXM_PADDING(16));
-              
+
         PACK(msg0, "ofp_multipart_reply.body[3].type", OFPTFPT_APPLY_SETFIELD, UINT16);
         PACK(msg0, "ofp_multipart_reply.body[3].length", 12, UINT16);
             PACK(msg0, "ofp_multipart_reply.body[3][0]", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IN_PORT, TRUE, 0), UINT32);
             PACK(msg0, "ofp_multipart_reply.body[3][1]", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IPV4_DST, TRUE, 0), UINT32);
         PADDING(msg0, OFP_MATCH_OXM_PADDING(12));
-                        
+
     SEND(msg0);
 
     MESSAGE(msg);
@@ -301,18 +301,28 @@ int main(int argc, char *argv[])
     PACK(msg8, "ofp_table_mod.header.xid", 0xcafebabe, UINT32);
     PACK(msg8, "ofp_table_mod.table_id", 99, UINT8);
     PADDING(msg8, 3);
-    PACK(msg8, "ofp_table_mod.config", OFPTC_TABLE_MISS_CONTINUE | OFPTC_TABLE_MISS_DROP, UINT32);
+    PACK(msg8, "ofp_table_mod.config", 0, UINT32);
     SEND(msg8);
 
-/*    MESSAGE(msg9);*/
-/*    PACK(msg9, "ofp_stats_reply.header.version", OFP_VERSION, UINT8);*/
-/*    PACK(msg9, "ofp_stats_reply.header.type", OFPT_STATS_REPLY, UINT8);*/
-/*    PACK(msg9, "ofp_stats_reply.header.length", 0, UINT16);*/
-/*    PACK(msg9, "ofp_stats_reply.header.xid", 0xcafebabe, UINT32);*/
-/*    PACK(msg9, "ofp_stats_reply.type", OFPST_AGGREGATE, UINT16);*/
-/*    PACK(msg9, "ofp_stats_reply.type", OFPSF_REPLY_MORE, UINT16);*/
-/*    PADDING(msg9, 4);*/
-/*    SEND(msg9);*/
+    MESSAGE(msg9);
+    PACK(msg9, "ofp_get_async_request.header.version", OFP_VERSION, UINT8);
+    PACK(msg9, "ofp_get_async_request.header.type", OFPT_GET_ASYNC_REQUEST, UINT8);
+    PACK(msg9, "ofp_get_async_request.header.length", 0, UINT16);
+    PACK(msg9, "ofp_get_async_request.header.xid", 0xcafebabe, UINT32);
+    SEND(msg9);
+
+    MESSAGE(msg10);
+    PACK(msg10, "ofp_get_async_reply.header.version", OFP_VERSION, UINT8);
+    PACK(msg10, "ofp_get_async_reply.header.type", OFPT_SET_ASYNC, UINT8);
+    PACK(msg10, "ofp_get_async_reply.header.length", 0, UINT16);
+    PACK(msg10, "ofp_get_async_reply.header.xid", 0xcafebabe, UINT32);
+    PACK(msg10, "ofp_get_async_reply.packet_in_mask[0]", 0b011, UINT32);
+    PACK(msg10, "ofp_get_async_reply.packet_in_mask[1]", 0b100, UINT32);
+    PACK(msg10, "ofp_get_async_reply.port_status_mask[0]", 0b001, UINT32);
+    PACK(msg10, "ofp_get_async_reply.port_status_mask[1]", 0b110, UINT32);
+    PACK(msg10, "ofp_get_async_reply.flow_removed_mask[0]", 0b1100, UINT32);
+    PACK(msg10, "ofp_get_async_reply.flow_removed_mask[1]", 0b0011, UINT32);
+    SEND(msg10);
 
     return 0;
 }

@@ -20,8 +20,11 @@ class Enum:
                 current.add_masked_bit(bit)
             except IndexError: # Ignore unshifted things
                 return
-            
-            self.lines.append("BITMAP_PART(\"{0}.{1}\", \"{2}\", {3}, {1});".format(self.name, field, desc, self.length, field));
+
+            fvalue = field
+            if "bitmask" in self.name:
+                fvalue = "1 << {}".format(field)
+            self.lines.append("BITMAP_PART(\"{0}.{1}\", \"{2}\", {3}, {4});".format(self.name, field, desc, self.length, fvalue));
         else:
             self.lines.append("TYPE_ARRAY_ADD({0}, {1}, \"{2} - {3}\");".format(self.name, field, desc, field))
 

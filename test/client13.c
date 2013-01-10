@@ -192,6 +192,9 @@ int main(int argc, char *argv[])
         PACK(msg, "ofp_flow_mod.instructions[0].actions[2].type", OFPAT_POP_VLAN, UINT16);
         PACK(msg, "ofp_flow_mod.instructions[0].actions[2].len", 8, UINT16);
         PADDING(msg, 4);
+    PACK(msg, "ofp_flow_mod.instructions[1].type", OFPIT_METER, UINT16);
+    PACK(msg, "ofp_flow_mod.instructions[1].len", 8, UINT16);
+    PACK(msg, "ofp_flow_mod.instructions[1].meter_id", 1234, UINT32);
     SEND(msg); // Now we pack the length correctly and send the message
 
     MESSAGE(msg2);
@@ -203,6 +206,7 @@ int main(int argc, char *argv[])
     PACK(msg2, "ofp_packet_in.total_len", 0x1234, UINT16);
     PACK(msg2, "ofp_packet_in.reason", OFPR_ACTION, UINT8);
     PACK(msg2, "ofp_packet_in.table_id", 0xAA, UINT8);
+    PACK(msg2, "ofp_packet_in.cookie", 0xbeefbeef, UINT64);
     PACK(msg2, "ofp_packet_in.match.type", OFPMT_OXM, UINT16);
     PACK(msg2, "ofp_packet_in.match.length", 20, UINT16);
     PACK(msg2, "ofp_packet_in.match.oxm_fields[0].header", OXM_HEADER(OFPXMC_OPENFLOW_BASIC, OFPXMT_OFB_IN_PORT, TRUE, 64), UINT32);
@@ -323,6 +327,22 @@ int main(int argc, char *argv[])
     PACK(msg10, "ofp_get_async_reply.flow_removed_mask[0]", 0b1100, UINT32);
     PACK(msg10, "ofp_get_async_reply.flow_removed_mask[1]", 0b0011, UINT32);
     SEND(msg10);
+
+    MESSAGE(msg11);
+    PACK(msg11, "ofp_meter_mod.header.version", OFP_VERSION, UINT8);
+    PACK(msg11, "ofp_meter_mod.header.type", OFPT_METER_MOD, UINT8);
+    PACK(msg11, "ofp_meter_mod.header.length", 0, UINT16);
+    PACK(msg11, "ofp_meter_mod.header.xid", 0xcafebabe, UINT32);
+    PACK(msg11, "ofp_meter_mod.command", OFPMC_MODIFY, UINT16);
+    PACK(msg11, "ofp_meter_mod.flags", OFPMF_BURST, UINT16);
+    PACK(msg11, "ofp_meter_mod.meter_id", 0x55556666, UINT32);
+    PACK(msg11, "ofp_meter_mod.bands[0].type", OFPMBT_DSCP_REMARK, UINT16);
+    PACK(msg11, "ofp_meter_mod.bands[0].length", 16, UINT16);
+    PACK(msg11, "ofp_meter_mod.bands[0].rate", 777, UINT32);
+    PACK(msg11, "ofp_meter_mod.bands[0].burst_size", 888, UINT32);
+    PACK(msg11, "ofp_meter_mod.bands[0].prec_level", 99, UINT8);
+    PADDING(msg11, 3);
+    SEND(msg11);
 
     return 0;
 }

@@ -10,6 +10,7 @@
 #include <util/FieldManager.hpp>
 
 #define PROTO_TAG_OPENFLOW_VER "OFP 1.3"
+// TODO: It's being redefined here from 1.2. Is this right?
 
 // Wireshark isn't a C++ application, so don't try
 // to initialize C++ objects before main()
@@ -62,7 +63,8 @@ namespace openflow_130 {
         void dissect_ofp_packet_out();
         void dissect_ofp_role_request();
         void dissect_ofp_get_async_reply();
-
+        void dissect_ofp_meter_mod();
+        void dissect_ofp_meter_band(proto_tree* parent);
 
         dissector_handle_t mDataHandle;
         dissector_handle_t mOpenflowHandle;
@@ -115,6 +117,10 @@ namespace openflow_130 {
         GArray* ofp_queue_op_failed_code;
         GArray* ofp_switch_config_failed_code;
         GArray* ofp_role_request_failed_code;
+        GArray* ofp_meter;
+        GArray* ofp_meter_mod_command;
+        GArray* ofp_meter_flags;
+        GArray* ofp_meter_band_type;
     };
 
     void init(int);

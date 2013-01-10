@@ -278,6 +278,10 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
                     this->dissect_ofp_get_async_reply();
                     break;
 
+                case OFPT_METER_MOD:
+                    this->dissect_ofp_meter_mod();
+                    break;
+
                 default:
                     IGNORE; // We don't know what to do
             }
@@ -787,6 +791,10 @@ void DissectorContext::dissect_ofp_instruction(proto_tree* parent) {
         case OFPIT_CLEAR_ACTIONS:
             ADD_CHILD(tree, "padding", 4);
             break;
+        case OFPIT_METER:
+            ADD_CHILD(tree, "ofp_instruction_meter.meter_id", 4);
+            break;
+
         default:
             // Unknown type
             CONSUME_BYTES(message_end - this->_offset);
@@ -799,7 +807,7 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
     READ_UINT16(len);
     this->_offset -= 2;
 
-    guint32 end, oxm_len;
+    guint32 oxm_len;
 
 //    if (len == 0)
 //      { throw ZeroLenAction(); }
@@ -826,6 +834,7 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
         case OFPAT_DEC_NW_TTL:
         case OFPAT_DEC_MPLS_TTL:
         case OFPAT_POP_VLAN:
+        case OFPAT_POP_PBB:
             ADD_CHILD(tree, "padding", 4);
             break;
         case OFPAT_SET_MPLS_TTL:
@@ -834,6 +843,7 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
             break;
         case OFPAT_PUSH_VLAN:
         case OFPAT_PUSH_MPLS:
+        case OFPAT_PUSH_PBB:
             ADD_CHILD(tree, "ofp_action_push.ethertype", 2);
             ADD_CHILD(tree, "padding", 2);
             break;
@@ -949,6 +959,50 @@ void DissectorContext::dissect_ofp_get_async_reply() {
     ADD_BOOLEAN(flow_removed_sl_tree, "ofp_flow_removed_reason_bitmask.OFPRR_GROUP_DELETE", 4, flow_removed_sl);
     ADD_BOOLEAN(flow_removed_sl_tree, "ofp_flow_removed_reason_bitmask.RESERVED", 4, flow_removed_sl);
     CONSUME_BYTES(4);
+}
+
+void DissectorContext::dissect_ofp_meter_mod() {
+    ADD_TREE(tree, "ofp_meter_mod");
+
+    ADD_CHILD(tree, "ofp_meter_mod.command", 2);
+    // Only one flag is supported by the spec for now
+    ADD_CHILD(tree, "ofp_meter_mod.flags", 2);
+    ADD_CHILD(tree, "ofp_meter_mod.meter_id", 4);
+
+    while (this->_offset < this->_oflen) {
+        this->dissect_ofp_meter_band(tree);
+    }
+}
+
+void DissectorContext::dissect_ofp_meter_band(proto_tree* parent) {
+    READ_UINT16(type);
+    this->_offset += 2; // read ahead
+    READ_UINT16(len);
+    this->_offset -= 2; // go back to the start
+
+    guint32 message_end = this->_offset + len;
+
+    ADD_SUBTREE(tree, parent, "ofp_meter_band", len);
+    ADD_CHILD(tree, "ofp_meter_band.type", 2);
+    ADD_CHILD(tree, "ofp_meter_band.len", 2);
+    ADD_CHILD(tree, "ofp_meter_band.rate", 4);
+    ADD_CHILD(tree, "ofp_meter_band.burst_size", 4);
+
+    switch (type) {
+        case OFPMBT_DROP:
+            ADD_CHILD(tree, "padding", 4);
+            break;
+        case OFPMBT_DSCP_REMARK:
+            ADD_CHILD(tree, "ofp_meter_band_dscp_remark.prec_level", 1);
+            ADD_CHILD(tree, "padding", 3);
+            break;
+        case OFPMBT_EXPERIMENTER:
+            ADD_CHILD(tree, "ofp_meter_band_experimenter.experimenter", 4);
+            break;
+        default:
+            CONSUME_BYTES(message_end - this->_offset);
+            break;
+    }
 }
 
 void DissectorContext::setupFields() {
@@ -1099,6 +1153,7 @@ void DissectorContext::setupFields() {
     FIELD("ofp_instruction_goto_table.table_id", "Table ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_instruction_write_metadata.metadata", "Metadata", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
     FIELD("ofp_instruction_write_metadata.metadata_mask", "Metadata Mask", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_instruction_meter.meter_id", "Meter ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
 
     // Group Mod
     TREE_FIELD("groupmod", "Group Mod");
@@ -1146,6 +1201,19 @@ void DissectorContext::setupFields() {
     BITMAP_FIELD("ofp_async_config.port_status_mask-sl", "Port Status Mask (for slave)", FT_UINT32);
     BITMAP_FIELD("ofp_async_config.flow_removed_mask-eq_ms", "Flow Removed Mask (for equal, master)", FT_UINT32);
     BITMAP_FIELD("ofp_async_config.flow_removed_mask-sl", "Flow Removed Mask (for slave)", FT_UINT32);
+
+    // ofp_meter_mod
+    TREE_FIELD("ofp_meter_mod", "Meter Mod");
+    FIELD("ofp_meter_mod.command", "Command", FT_UINT16, BASE_DEC, VALUES(ofp_meter_mod_command), NO_MASK);
+    FIELD("ofp_meter_mod.flags", "Flags", FT_UINT16, BASE_HEX, VALUES(ofp_meter_flags), NO_MASK);
+    FIELD("ofp_meter_mod.meter_id", "Meter ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
+    TREE_FIELD("ofp_meter_band", "Band");
+    FIELD("ofp_meter_band.type", "Type", FT_UINT16, BASE_HEX, VALUES(ofp_meter_band_type), NO_MASK);
+    FIELD("ofp_meter_band.len", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_meter_band.rate", "Rate", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_meter_band.burst_size", "Burst size", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_meter_band_dscp_remark.prec_level", "Precedence level", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_meter_band_experimenter.experimenter", "Experimenter ID", FT_UINT32, BASE_HEX, NO_VALUES, NO_MASK);
 }
 
 // Generated code
@@ -1251,6 +1319,10 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV6_ND_TLL, "Target link-layer for ND - OFPXMT_OFB_IPV6_ND_TLL");
     TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_MPLS_LABEL, "MPLS label - OFPXMT_OFB_MPLS_LABEL");
     TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_MPLS_TC, "MPLS TC - OFPXMT_OFB_MPLS_TC");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFP_MPLS_BOS, "MPLS BoS bit - OFPXMT_OFP_MPLS_BOS");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_PBB_ISID, "PBB I-SID - OFPXMT_OFB_PBB_ISID");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_TUNNEL_ID, "Logical Port Metadata - OFPXMT_OFB_TUNNEL_ID");
+    TYPE_ARRAY_ADD(oxm_ofb_match_fields, OFPXMT_OFB_IPV6_EXTHDR, "IPv6 Extension Header pseudo-field - OFPXMT_OFB_IPV6_EXTHDR");
 
     // ofp_vlan_id
     TYPE_ARRAY(ofp_vlan_id);
@@ -1283,6 +1355,8 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_action_type, OFPAT_SET_NW_TTL, "IP TTL - OFPAT_SET_NW_TTL");
     TYPE_ARRAY_ADD(ofp_action_type, OFPAT_DEC_NW_TTL, "Decrement IP TTL - OFPAT_DEC_NW_TTL");
     TYPE_ARRAY_ADD(ofp_action_type, OFPAT_SET_FIELD, "Set a header field using OXM TLV format - OFPAT_SET_FIELD");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_PUSH_PBB, "Push a new PBB service tag (I-TAG) - OFPAT_PUSH_PBB");
+    TYPE_ARRAY_ADD(ofp_action_type, OFPAT_POP_PBB, "Pop the outer PBB service tag (I-TAG) - OFPAT_POP_PBB");
     TYPE_ARRAY_ADD(ofp_action_type, OFPAT_EXPERIMENTER, "Experimenter action - OFPAT_EXPERIMENTER");
 
     // ofp_controller_max_len
@@ -1529,6 +1603,32 @@ void DissectorContext::setupCodes(void) {
     TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_STALE, "Stale Message: old generation_id - OFPRRFC_STALE");
     TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_UNSUP, "Controller role change unsupported - OFPRRFC_UNSUP");
     TYPE_ARRAY_ADD(ofp_role_request_failed_code, OFPRRFC_BAD_ROLE, "Invalid role - OFPRRFC_BAD_ROLE");
+
+    // ofp_meter
+    TYPE_ARRAY(ofp_meter);
+    TYPE_ARRAY_ADD(ofp_meter, OFPM_MAX, "Last usable meter - OFPM_MAX");
+    TYPE_ARRAY_ADD(ofp_meter, OFPM_SLOWPATH, "Meter for slow datapath, if any - OFPM_SLOWPATH");
+    TYPE_ARRAY_ADD(ofp_meter, OFPM_CONTROLLER, "Meter for controller connection - OFPM_CONTROLLER");
+    TYPE_ARRAY_ADD(ofp_meter, OFPM_ALL, "Represents all meters for stat requests commands - OFPM_ALL");
+
+    // ofp_meter_mod_command
+    TYPE_ARRAY(ofp_meter_mod_command);
+    TYPE_ARRAY_ADD(ofp_meter_mod_command, OFPMC_ADD, "New meter - OFPMC_ADD");
+    TYPE_ARRAY_ADD(ofp_meter_mod_command, OFPMC_MODIFY, "Modify specified meter - OFPMC_MODIFY");
+    TYPE_ARRAY_ADD(ofp_meter_mod_command, OFPMC_DELETE, "Delete specified meter - OFPMC_DELETE");
+
+    // ofp_meter_flags
+    TYPE_ARRAY(ofp_meter_flags);
+    TYPE_ARRAY_ADD(ofp_meter_flags, OFPMF_KBPS, "Rate value in kb/s (kilo-bit per second) - OFPMF_KBPS");
+    TYPE_ARRAY_ADD(ofp_meter_flags, OFPMF_PKTPS, "Rate value in packet/sec - OFPMF_PKTPS");
+    TYPE_ARRAY_ADD(ofp_meter_flags, OFPMF_BURST, "Do burst size - OFPMF_BURST");
+    TYPE_ARRAY_ADD(ofp_meter_flags, OFPMF_STATS, "Collect statistics - OFPMF_STATS");
+
+    // ofp_meter_band_type
+    TYPE_ARRAY(ofp_meter_band_type);
+    TYPE_ARRAY_ADD(ofp_meter_band_type, OFPMBT_DROP, "Drop packet - OFPMBT_DROP");
+    TYPE_ARRAY_ADD(ofp_meter_band_type, OFPMBT_DSCP_REMARK, "Remark DSCP in the IP header - OFPMBT_DSCP_REMARK");
+    TYPE_ARRAY_ADD(ofp_meter_band_type, OFPMBT_EXPERIMENTER, "Experimenter meter band - OFPMBT_EXPERIMENTER");
 
 }
 

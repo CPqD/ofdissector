@@ -26,6 +26,7 @@ extern "C" {
 // Really wireshark, you couldn't extern your symbols?
 #include <glib.h>
 #include <epan/packet.h>
+#include <epan/expert.h>
 
 #if defined(__cplusplus)
 }

@@ -107,6 +107,9 @@ functions and methods. */
 #define BITMAP_PART(field, desc, length, mask) \
     this->mFM.createField(field, desc, FT_BOOLEAN, length, TFS(&tfs_set_notset), mask, false)
 
+#define SHOW_ERROR(where, msg) expert_add_info_format(this->_pinfo, where, PI_MALFORMED, PI_ERROR, msg)
+
+
 namespace openflow_130 {
 
 DissectorContext * DissectorContext::mSingle = NULL;
@@ -338,7 +341,8 @@ void DissectorContext::dissect_ofp_switch_features() {
     ADD_CHILD(tree, "ofp_switch_features.datapath_id", 8);
     ADD_CHILD(tree, "ofp_switch_features.n_buffers", 4);
     ADD_CHILD(tree, "ofp_switch_features.n_tables", 1);
-    ADD_CHILD(tree, "padding", 3);
+    ADD_CHILD(tree, "ofp_switch_features.auxiliary_id", 1);
+    ADD_CHILD(tree, "padding", 2);
 
     READ_UINT32(capabilities);
     ADD_SUBTREE(capabilities_tree, tree, "ofp_switch_features.capabilities", 4);
@@ -353,18 +357,6 @@ void DissectorContext::dissect_ofp_switch_features() {
     CONSUME_BYTES(4);
 
     ADD_CHILD(tree, "ofp_switch_features.reserved", 4);
-
-    // Ports
-    // TODO: shouldn't we use a while like in other parts?
-    guint32 portlen = this->_oflen - 32;
-    if (portlen % 64 != 0) {
-        // Packet alignment is off, we should probably complain
-    }
-    else {
-        guint32 ports =  portlen / 64;
-        for (int port = 0; port < ports; ++port)
-            this->dissect_ofp_port(tree);
-    }
 }
 
 void DissectorContext::dissect_ofp_switch_config() {
@@ -447,6 +439,50 @@ void DissectorContext::dissect_ofp_table_features(proto_tree* parent) {
     }
 }
 
+void DissectorContext::dissect_ofp_flow_stats_request(proto_tree* parent) {
+    ADD_SUBTREE(tree, parent, "ofp_flow_stats_request", sizeof(struct ofp_flow_stats_request));
+    ADD_CHILD(tree, "ofp_flow_stats_request.table_id", 1);
+    ADD_CHILD(tree, "padding", 3);
+    ADD_CHILD(tree, "ofp_flow_stats_request.out_port", 4);
+    ADD_CHILD(tree, "ofp_flow_stats_request.out_group", 4);
+    ADD_CHILD(tree, "padding", 4);
+    ADD_CHILD(tree, "ofp_flow_stats_request.cookie", 8);
+    ADD_CHILD(tree, "ofp_flow_stats_request.cookie_mask", 8);
+
+    this->dissect_ofp_match(tree);
+}
+
+void DissectorContext::dissect_ofp_flow_stats(proto_tree* parent) {
+    READ_UINT16(length);
+    guint32 end = this->_offset + length;
+
+    ADD_TREE(tree, "ofp_flow_stats");
+    ADD_CHILD(tree, "ofp_flow_stats.length", 2);
+    ADD_CHILD(tree, "ofp_flow_stats.table_id", 1);
+    ADD_CHILD(tree, "padding", 1);
+    ADD_CHILD(tree, "ofp_flow_stats.duration_sec", 4);
+    ADD_CHILD(tree, "ofp_flow_stats.duration_nsec", 4);
+    ADD_CHILD(tree, "ofp_flow_stats.priority", 2);
+    ADD_CHILD(tree, "ofp_flow_stats.idle_timeout", 2);
+    ADD_CHILD(tree, "ofp_flow_stats.hard_timeout", 2);
+    READ_UINT16(flags);
+    ADD_SUBTREE(flags_tree, tree, "ofp_flow_stats.flags", 2);
+    ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.RESERVED", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.OFPFF_SEND_FLOW_REM", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.OFPFF_CHECK_OVERLAP", 2, flags);
+    ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.OFPFF_RESET_COUNTS", 2, flags);
+    CONSUME_BYTES(2);
+    ADD_CHILD(tree, "padding", 4);
+    ADD_CHILD(tree, "ofp_flow_stats.cookie", 8);
+    ADD_CHILD(tree, "ofp_flow_stats.packet_count", 8);
+    ADD_CHILD(tree, "ofp_flow_stats.byte_count", 8);
+    this->dissect_ofp_match(tree);
+
+    while (this->_offset < end) {
+        this->dissect_ofp_instruction(tree);
+    }
+}
+
 void DissectorContext::dissect_ofp_multipart_request() {
     ADD_TREE(tree, "ofp_multipart_request");
 
@@ -461,6 +497,9 @@ void DissectorContext::dissect_ofp_multipart_request() {
     ADD_CHILD(tree, "padding", 4);
 
     switch (type) {
+        case OFPMP_FLOW:
+            this->dissect_ofp_flow_stats_request(tree);
+            break;
         case OFPMP_TABLE_FEATURES:
             while ((this->_oflen - this->_offset) > 0) {
                 this->dissect_ofp_table_features(tree);
@@ -486,6 +525,11 @@ void DissectorContext::dissect_ofp_multipart_reply() {
     ADD_CHILD(tree, "padding", 4);
 
     switch (type) {
+        case OFPMP_FLOW:
+            while ((this->_oflen - this->_offset) > 0) {
+                this->dissect_ofp_flow_stats(tree);
+            }
+            break;
         case OFPMP_TABLE_FEATURES:
             while ((this->_oflen - this->_offset) > 0) {
                 this->dissect_ofp_table_features(tree);
@@ -530,8 +574,7 @@ void DissectorContext::dissect_ofp_flow_mod() {
     CONSUME_BYTES(2);
     ADD_CHILD(tree, "padding", 2);
 
-    ADD_SUBTREE(match_tree, tree, "ofp_flow_mod.match", this->_oflen - this->_offset);
-    this->dissect_ofp_match(match_tree);
+    this->dissect_ofp_match(tree);
 
     try {
         while ((this->_oflen - this->_offset) > 0) {
@@ -552,8 +595,7 @@ void DissectorContext::dissect_ofp_packet_in() {
     ADD_CHILD(tree, "ofp_packet_in.table_id", 1);
     ADD_CHILD(tree, "ofp_packet_in.cookie", 8);
 
-    ADD_SUBTREE(match_tree, tree, "ofp_packet_in.match", this->_oflen - this->_offset);
-    this->dissect_ofp_match(match_tree);
+    this->dissect_ofp_match(tree);
 
     ADD_CHILD(tree, "padding", 2);
 
@@ -680,32 +722,34 @@ void DissectorContext::dissectOFPPF (proto_tree *tree) {
     CONSUME_BYTES(4);
 }
 
-void DissectorContext::dissect_ofp_match(proto_tree *tree) {
+void DissectorContext::dissect_ofp_match(proto_tree *parent) {
     /*FIXME: We should care if the type isn't OXM (0x01) */
 
-    ADD_CHILD(tree, "ofp_match.type", 2);
+    this->_offset += 2; // read ahead
     READ_UINT16(length);
+    this->_offset -= 2;
+
+    ADD_SUBTREE(tree, parent, "ofp_match", length);
+
+    ADD_CHILD(tree, "ofp_match.type", 2);
     ADD_CHILD(tree, "ofp_match.len", 2);
 
-    /* If the length is 8, we have an empty ofp_match, meaning that oxm_fields
-    filled with padding bits. Otherwise, we have valid OXM fields. */
-    if (length == 8) {
+    /* If the length is 4, we have an empty ofp_match, meaning that oxm_fields
+    is filled with padding bits. Otherwise, we have valid OXM fields. */
+    if (length == 4) {
         ADD_CHILD(tree, "padding", 4);
     }
     else {
-        dissect_ofp_oxm(tree, length);
+        guint32 to_consume = length - 4;
+        guint32 consumed = 0;
+        while (consumed < to_consume) {
+            consumed += dissect_ofp_oxm_field(tree);
+        }
+        if (consumed > to_consume)
+            SHOW_ERROR(tree, "Match length smaller than OXM fields");
+
+        ADD_CHILD(tree, "padding", OFP_MATCH_OXM_PADDING(length));
     }
-}
-
-
-void DissectorContext::dissect_ofp_oxm(proto_tree *parent, guint32 length) {
-    int end = this->_offset + (length - 4);
-    // Dissect each field
-    while (this->_offset < end) {
-        dissect_ofp_oxm_field(parent);
-    }
-
-    ADD_CHILD(parent, "padding", OFP_MATCH_OXM_PADDING(length));
 }
 
 void DissectorContext::dissect_ofp_oxm_header(proto_tree *tree) {
@@ -715,6 +759,7 @@ void DissectorContext::dissect_ofp_oxm_header(proto_tree *tree) {
     ADD_CHILD(tree, "ofp_oxm.oxm_hasmask", 1);
     ADD_CHILD(tree, "ofp_oxm.oxm_length", 1);
 }
+
 
 int DissectorContext::dissect_ofp_oxm_field(proto_tree *parent) {
     // Header contains length
@@ -1044,6 +1089,7 @@ void DissectorContext::setupFields() {
     FIELD("ofp_switch_features.datapath_id", "Datapath ID", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
     FIELD("ofp_switch_features.n_buffers", "Buffers", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_switch_features.n_tables", "Tables", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_switch_features.auxiliary_id", "Auxiliary ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
     BITMAP_FIELD("ofp_switch_features.capabilities", "Capabilities", FT_UINT32);
     FIELD("ofp_switch_features.reserved", "Reserved", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
     TREE_FIELD("ofp_switch_features.ports", "Ports");
@@ -1109,6 +1155,28 @@ void DissectorContext::setupFields() {
     BITMAP_FIELD("ofp_multipart_reply.flags", "Flags", FT_UINT16);
     FIELD("ofp_multipart_reply.body", "Body", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
 
+    // ofp_flow_stats_request
+    TREE_FIELD("ofp_flow_stats_request", "Individual flow statistics request");
+    FIELD("ofp_flow_stats_request.table_id", "Table ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats_request.out_port", "Output Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats_request.out_group", "Output Group", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats_request.cookie", "Cookie", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats_request.cookie_mask", "Cookie mask", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+
+    // ofp_flow_stats
+    TREE_FIELD("ofp_flow_stats", "Individual Flow Stats");
+    FIELD("ofp_flow_stats.length", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats.table_id", "Table ID", FT_UINT8, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats.duration_sec", "Duration (sec)", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats.duration_nsec", "Duration (nsec)", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats.priority", "Priority", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats.idle_timeout", "Idle Timeout", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats.hard_timeout", "Hard Timeout", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
+    BITMAP_FIELD("ofp_flow_stats.flags", "Flags", FT_UINT16);
+    FIELD("ofp_flow_stats.cookie", "Cookie", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats.packet_count", "Packet count", FT_UINT64, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_flow_stats.byte_count", "Byte count", FT_UINT64, BASE_DEC, NO_VALUES, NO_MASK);
+
     // ofp_table_features
     TREE_FIELD("ofp_table_features", "Table features");
     FIELD("ofp_table_features.length", "Length", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
@@ -1143,7 +1211,6 @@ void DissectorContext::setupFields() {
     FIELD("ofp_flow_mod.out_port", "Output Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("ofp_flow_mod.out_group", "Output Group", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
     BITMAP_FIELD("ofp_flow_mod.flags", "Flags", FT_UINT16);
-    TREE_FIELD("ofp_flow_mod.match", "Match");
 
     // ofp_instruction
     TREE_FIELD("ofp_instruction", "Instruction");
@@ -1178,7 +1245,6 @@ void DissectorContext::setupFields() {
     FIELD("ofp_packet_in.reason", "Reason", FT_UINT8, BASE_HEX, VALUES(ofp_packet_in_reason), NO_MASK);
     FIELD("ofp_packet_in.table_id", "Table ID", FT_UINT8, BASE_HEX, NO_VALUES, NO_MASK);
     FIELD("ofp_packet_in.cookie", "Cookie", FT_UINT64, BASE_HEX, NO_VALUES, NO_MASK);
-    TREE_FIELD("ofp_packet_in.match", "Match");
     FIELD("ofp_packet_in.data", "Data", FT_BYTES, BASE_NONE, NO_VALUES, NO_MASK);
 
     // ofp_packet_out

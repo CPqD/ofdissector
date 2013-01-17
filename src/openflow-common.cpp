@@ -41,7 +41,7 @@ dissect_openflow (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
       break;
     case OFP_130_NS::gVersion:
       OFP_130_NS::Context->dissect(tvb, pinfo, tree);
-      break;      
+      break;
     default:
       return;
     }
@@ -74,6 +74,6 @@ proto_register_openflow (void)
   OFP_110_NS::init(proto_openflow);
   OFP_120_NS::init(proto_openflow);
   OFP_130_NS::init(proto_openflow);
-  
+
   register_dissector("openflow", dissect_openflow, proto_openflow);
   }

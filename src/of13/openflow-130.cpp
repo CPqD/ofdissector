@@ -2,20 +2,6 @@
 Copyright (c) 2012 Barnstormer Softworks Ltd.
 Copyright (c) 2012 CPqD */
 
-/* TODO:
-- Implement ofp_*_stats dissection (stats body)
-- Implement ofp_queue_get_config_request/reply dissections
-- Implement ofp_flow_removed dissection
-- Finishing standardizing names and keys
-- Change FieldManager API and get rid of most macros.
-- Prettier OXM values and masks
-- Due to code generation, we can't show a default value for flag fields
-  (i.e.: OFPC_FRAG_NORMAL and OFPTC_TABLE_MISS_CONTROLLER). Fix this.
-- Some enums (e.g.: ofp_controller_max_len) have few values at the end of their
-  ranges. This causes a segfault when some values are used and invalid strings
-  with some others. Investigate this and try to solve it.
-*/
-
 #define OPENFLOW_INTERNAL
 
 #include <string.h>

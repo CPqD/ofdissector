@@ -72,27 +72,27 @@ void net_send(MSG msg) {
     struct hostent *server;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) 
-        Error("Error opening socket");
+    if (sockfd < 0)
+        error("Error opening socket");
     server = gethostbyname(HOST);
     if (server == NULL) {
         fprintf(stderr,"Error, no such host\n");
         exit(0);
     }
-    
+
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, 
+    bcopy((char *)server->h_addr,
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
     serv_addr.sin_port = htons(PORT);
-    if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-        Error("Error connecting");
+    if (connect(sockfd,(struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+        error("Error connecting");
 
     n = write(sockfd, msg.data, msg.offset);
-    if (n < 0) 
-         Error("Error writing to socket");
-         
+    if (n < 0)
+         error("Error writing to socket");
+
     close(sockfd);
 }
 
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
         PACK(msg, "ofp_flow_mod.instructions[0].actions[2].len", 8, UINT16);
         PADDING(msg, 4);
     SEND(msg); // Now we pack the length correctly and send the message
-    
+
     MESSAGE(msg2);
     PACK(msg2, "ofp_packet_in.header.version", 0x03, UINT8);
     PACK(msg2, "ofp_packet_in.header.type", OFPT_PACKET_IN, UINT8);
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
     PADDING(msg2, OFP_MATCH_OXM_PADDING(20));
     PADDING(msg2, 2);
     PACK(msg2, "ofp_packet_in.data", 0x0, UINT64);
-    SEND(msg2);    
+    SEND(msg2);
 
     MESSAGE(msg3);
     PACK(msg3, "ofp_packet_out.header.version", 0x03, UINT8);
@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
     PADDING(msg4, 4);
     PACK(msg4, "ofp_role_request.generation_id", 0x0102030405060708, UINT64);
     SEND(msg4);
-    
+
     MESSAGE(msg5);
     PACK(msg5, "ofp_error.header.version", 0x03, UINT8);
     PACK(msg5, "ofp_error.header.type", OFPT_ERROR, UINT8);
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
     PACK(msg5, "ofp_error.code", OFPBMC_BAD_FIELD, UINT16);
     PACK(msg5, "ofp_error.data", 0xdeaddeaddeaddead, UINT64);
     SEND(msg5);
-    
+
     MESSAGE(msg6);
     PACK(msg6, "ofp_switch_features.header.version", 0x03, UINT8);
     PACK(msg6, "ofp_switch_features.header.type", OFPT_FEATURES_REPLY, UINT8);
@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
     PACK(msg6, "ofp_switch_features.ports[0].curr_speed", 5000, UINT32);
     PACK(msg6, "ofp_switch_features.ports[0].max_speed", 20000, UINT32);
     SEND(msg6);
-    
+
     MESSAGE(msg7);
     PACK(msg7, "ofp_switch_config.header.version", 0x03, UINT8);
     PACK(msg7, "ofp_switch_config.header.type", OFPT_GET_CONFIG_REPLY, UINT8);
@@ -251,7 +251,7 @@ int main(int argc, char *argv[])
     PADDING(msg8, 3);
     PACK(msg8, "ofp_table_mod.config", OFPTC_TABLE_MISS_CONTINUE | OFPTC_TABLE_MISS_DROP, UINT32);
     SEND(msg8);
-        
+
     MESSAGE(msg9);
     PACK(msg9, "ofp_stats_reply.header.version", 0x03, UINT8);
     PACK(msg9, "ofp_stats_reply.header.type", OFPT_STATS_REPLY, UINT8);
@@ -261,6 +261,6 @@ int main(int argc, char *argv[])
     PACK(msg9, "ofp_stats_reply.type", OFPSF_REPLY_MORE, UINT16);
     PADDING(msg9, 4);
     SEND(msg9);
-    
+
     return 0;
 }

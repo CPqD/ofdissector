@@ -2,20 +2,6 @@
 Copyright (c) 2012 Barnstormer Softworks Ltd.
 Copyright (c) 2012 CPqD */
 
-/* TODO:
-- Implement ofp_*_stats dissection (stats body)
-- Implement ofp_queue_get_config_request/reply dissections
-- Implement ofp_flow_removed dissection
-- Finishing standardizing names and keys
-- Change FieldManager API and get rid of most macros.
-- Prettier OXM values and masks
-- Due to code generation, we can't show a default value for flag fields
-  (i.e.: OFPC_FRAG_NORMAL and OFPTC_TABLE_MISS_CONTROLLER). Fix this.
-- Some enums (e.g.: ofp_controller_max_len) have few values at the end of their
-  ranges. This causes a segfault when some values are used and invalid strings
-  with some others. Investigate this and try to solve it.
-*/
-
 #define OPENFLOW_INTERNAL
 
 #include <string.h>
@@ -56,9 +42,9 @@ class ZeroLenBucket { };
 #define UNPACK_OXM_LENGTH(header) (header & 0x000000FF)
 
 
-/* WARNING: Yep, macros can be evil when used this way, but they are here 
-because they simplified the development in this case. In the future, we will 
-try to get rid of them through a different API in FieldManager and new 
+/* WARNING: Yep, macros can be evil when used this way, but they are here
+because they simplified the development in this case. In the future, we will
+try to get rid of them through a different API in FieldManager and new
 functions and methods. */
 
 /* Create a type array, used to map codes to values */
@@ -327,7 +313,7 @@ void DissectorContext::dissect_ofp_switch_features() {
     ADD_CHILD(tree, "ofp_switch_features.n_buffers", 4);
     ADD_CHILD(tree, "ofp_switch_features.n_tables", 1);
     ADD_CHILD(tree, "padding", 3);
-    
+
     READ_UINT32(capabilities);
     ADD_SUBTREE(capabilities_tree, tree, "ofp_switch_features.capabilities", 4);
     ADD_BOOLEAN(capabilities_tree, "ofp_capabilities.RESERVED", 4, capabilities);
@@ -421,7 +407,7 @@ void DissectorContext::dissect_ofp_flow_mod() {
     ADD_CHILD(tree, "ofp_flow_mod.buffer_id", 4);
     ADD_CHILD(tree, "ofp_flow_mod.out_port", 4);
     ADD_CHILD(tree, "ofp_flow_mod.out_group", 4);
-    
+
     READ_UINT16(flags);
     ADD_SUBTREE(flags_tree, tree, "ofp_flow_mod.flags", 2);
     ADD_BOOLEAN(flags_tree, "ofp_flow_mod_flags.RESERVED", 2, flags);
@@ -632,7 +618,7 @@ int DissectorContext::dissect_ofp_oxm_field(proto_tree *parent) {
             value_field = "ofp_oxm.value";
             break;
     }
-    
+
     // If we have a mask, the body is double its normal size
     if (UNPACK_OXM_HASMASK(header)) {
         ADD_CHILD(tree, value_field, length/2);
@@ -652,7 +638,7 @@ void DissectorContext::dissect_ofp_instruction(proto_tree* parent) {
     this->_offset += 2; // read ahead
     READ_UINT16(len);
     this->_offset -= 2;
-    
+
     guint32 message_end = this->_offset + len;
 
     if (len == 0) {
@@ -698,7 +684,7 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
     this->_offset += 2; // read ahead
     READ_UINT16(len);
     this->_offset -= 2;
-    
+
     guint32 end, oxm_len;
 
     if (len == 0)
@@ -763,9 +749,9 @@ void DissectorContext::dissect_ofp_action(proto_tree* parent) {
 
 void DissectorContext::dissectGroupBucket(proto_tree* parent) {
     READ_UINT16(len);
-    
+
     if (len == 0)
-        throw ZeroLenBucket(); 
+        throw ZeroLenBucket();
 
     guint32 message_end = this->_offset + len;
 

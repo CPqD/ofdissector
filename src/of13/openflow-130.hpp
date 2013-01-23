@@ -10,7 +10,7 @@
 #include <util/FieldManager.hpp>
 
 #define PROTO_TAG_OPENFLOW_VER "OFP 1.3"
-// TODO: It's being redefined here from 1.2. Is this right?
+// TODO: It's being redefined here from 1.2. Is there a better way to do this?
 
 // Wireshark isn't a C++ application, so don't try
 // to initialize C++ objects before main()

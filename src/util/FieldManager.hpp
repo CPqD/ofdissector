@@ -97,8 +97,9 @@ class FieldManager {
     \param handle Dissector Handle
     \param start Starting byte position in the packet buffer for the data in this item
     \param len Length of the packet data covering this item
+    \param reported_len Length of the packet before truncation
     */
-    void addDissector(proto_tree* parent, std::string key, tvbuff_t *tvb, packet_info *pinfo, dissector_handle_t handle, guint32 start, guint32 len);
+    void addDissector(proto_tree* parent, std::string key, tvbuff_t *tvb, packet_info *pinfo, dissector_handle_t handle, guint32 start, guint32 len, guint32 reported_len);
 
     private:
     std::map<std::string, gint*>  mFields;

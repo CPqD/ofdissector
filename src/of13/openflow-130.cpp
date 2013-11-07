@@ -73,8 +73,8 @@ functions and methods. */
     this->mFM.addBoolean(tree, field, this->_tvb, this->_offset, length, bitmap)
 #define ADD_CHILD(tree, field, length) \
     this->mFM.addItem(tree, field, this->_tvb, this->_offset, length); this->_offset += length
-#define ADD_DISSECTOR(tree, field, length)	\
-    this->mFM.addDissector(tree, field, this->_tvb, this->_pinfo, this->_ether_handle, this->_offset, length); this->_offset += length
+#define ADD_DISSECTOR(tree, field, length, reported_length)                             \
+    this->mFM.addDissector(tree, field, this->_tvb, this->_pinfo, this->_ether_handle, this->_offset, length, reported_length); this->_offset += length
 #define CONSUME_BYTES(length) \
     this->_offset += length
 
@@ -576,6 +576,7 @@ void DissectorContext::dissect_ofp_packet_in() {
     ADD_TREE(tree, "ofp_packet_in");
 
     ADD_CHILD(tree, "ofp_packet_in.buffer_id", 4);
+    READ_UINT16(total_len);
     ADD_CHILD(tree, "ofp_packet_in.total_len", 2);
     ADD_CHILD(tree, "ofp_packet_in.reason", 1);
     ADD_CHILD(tree, "ofp_packet_in.table_id", 1);
@@ -586,7 +587,7 @@ void DissectorContext::dissect_ofp_packet_in() {
     ADD_CHILD(tree, "padding", 2);
 
     if (this->_oflen - this->_offset > 0) {
-	ADD_DISSECTOR(tree, "ofp_packet_in.data", this->_oflen - this->_offset);
+	ADD_DISSECTOR(tree, "ofp_packet_in.data", this->_oflen - this->_offset, total_len);
     } else
 	ADD_CHILD(tree, "ofp_packet_in.data", this->_oflen - this->_offset);
 }
@@ -607,7 +608,7 @@ void DissectorContext::dissect_ofp_packet_out() {
 
     // TODO: should we check to see it it's really Ethernet?
     if (this->_oflen - this->_offset > 0) {
-	   ADD_DISSECTOR(tree, "ofp_packet_out.data", this->_oflen - this->_offset);
+	   ADD_DISSECTOR(tree, "ofp_packet_out.data", this->_oflen - this->_offset, this->_oflen - this->_offset);
     }
     else {
 	   ADD_CHILD(tree, "ofp_packet_out.data", this->_oflen - this->_offset);

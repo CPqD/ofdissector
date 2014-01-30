@@ -236,6 +236,9 @@ void DissectorContext::dispatchMessage(tvbuff_t *tvb, packet_info *pinfo, proto_
                     break;
 
                 case OFPT_PORT_MOD:
+                    this->dissect_ofp_port_mod();
+                    break;
+
                 case OFPT_TABLE_MOD:
                     this->dissect_ofp_table_mod();
                     break;
@@ -630,6 +633,38 @@ void DissectorContext::dissectGroupMod() {
     catch (const ZeroLenBucket &e) {
         return;
     }
+}
+
+void DissectorContext::dissect_ofp_port_mod() {
+    ADD_TREE(tree, "ofp_port_mod");
+
+    ADD_CHILD(tree, "ofp_port_mod.num", 4);
+    ADD_CHILD(tree, "padding", 4);
+    ADD_CHILD(tree, "ofp_port_mod.hwaddr", 6);
+    ADD_CHILD(tree, "padding", 2);
+
+    READ_UINT32(ofppc);
+    ADD_SUBTREE(config_tree, tree, "ofp_port_mod.config", 4);
+    ADD_BOOLEAN(config_tree, "ofp_port_mod_config.RESERVED", 4, ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_mod_config.OFPPC_PORT_DOWN", 4, ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_mod_config.OFPPC_NO_RECV", 4, ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_mod_config.OFPPC_NO_FWD", 4, ofppc);
+    ADD_BOOLEAN(config_tree, "ofp_port_mod_config.OFPPC_NO_PACKET_IN", 4, ofppc);
+    CONSUME_BYTES(4);
+
+    READ_UINT32(mask);
+    ADD_SUBTREE(mask_tree, tree, "ofp_port_mod.mask", 4);
+    ADD_BOOLEAN(mask_tree, "ofp_port_mod_mask.RESERVED", 4, ofppc);
+    ADD_BOOLEAN(mask_tree, "ofp_port_mod_mask.OFPPC_PORT_DOWN", 4, ofppc);
+    ADD_BOOLEAN(mask_tree, "ofp_port_mod_mask.OFPPC_NO_RECV", 4, ofppc);
+    ADD_BOOLEAN(mask_tree, "ofp_port_mod_mask.OFPPC_NO_FWD", 4, ofppc);
+    ADD_BOOLEAN(mask_tree, "ofp_port_mod_mask.OFPPC_NO_PACKET_IN", 4, ofppc);
+    CONSUME_BYTES(4);
+
+    ADD_SUBTREE(advertise_tree, tree, "ofp_port_mod.advertise", 4);
+    dissectOFPPF(advertise_tree);
+
+    ADD_CHILD(tree, "padding", 4);
 }
 
 void DissectorContext::dissect_ofp_table_mod() {
@@ -1218,6 +1253,14 @@ void DissectorContext::setupFields() {
     FIELD("groupmod.bucket.weight", "Weight", FT_UINT16, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("groupmod.bucket.watch_port", "Watch Port", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
     FIELD("groupmod.bucket.watch_group", "Watch Group", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+
+    // ofp_port_mod
+    TREE_FIELD("ofp_port_mod", "Port Mod");
+    FIELD("ofp_port_mod.num", "Number", FT_UINT32, BASE_DEC, NO_VALUES, NO_MASK);
+    FIELD("ofp_port_mod.hwaddr", "Hardware Address", FT_ETHER, BASE_NONE, NO_VALUES, NO_MASK);
+    BITMAP_FIELD("ofp_port_mod.config", "Config", FT_UINT32);
+    BITMAP_FIELD("ofp_port_mod.mask", "Mask", FT_UINT32);
+    BITMAP_FIELD("ofp_port_mod.advertise", "Advertise", FT_UINT32);
 
     // ofp_table_mod
     TREE_FIELD("ofp_table_mod", "Table Mod");

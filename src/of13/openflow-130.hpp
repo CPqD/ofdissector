@@ -51,6 +51,7 @@ namespace openflow_130 {
         void dissect_ofp_portStatus();
         void dissect_ofp_flow_mod();
         void dissect_ofp_table_mod();
+        void dissect_ofp_port_mod();
         void dissectGroupMod();
         void dissect_ofp_match(proto_tree *parent);
         void dissect_ofp_port(proto_tree *);

@@ -56,7 +56,7 @@ extern "C" {
 
 #define PROTO_TAG_OPENFLOW "OFP"
 #define OFP_MIN_PACKET_SIZE 8
-#define OFP_TCP_PORT 6633
+#define OFP_TCP_PORT 6653
 
 void  DLLEXPORT dissect_openflow (tvbuff_t *, packet_info *, proto_tree *);
 void  DLLEXPORT proto_reg_handoff_openflow (void);

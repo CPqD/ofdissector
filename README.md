@@ -25,14 +25,15 @@ Install
 1. Set the Wireshark include directory. In Linux, this should be:
 
     ```
-    $ export WIRESHARK=/usr/include/wireshark
+    sudo -s
+    export WIRESHARK=/usr/include/wireshark
     ```
 
 2. Run:
 
     ```
-    $ cd src
-    $ scons install
+    cd ofdissector/src
+    scons install
     ```
 
 3. Run Wireshark and filter the messages. Some filter examples:

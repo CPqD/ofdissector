@@ -1,3 +1,8 @@
+# Deprecation warning
+This dissector is deprecated and no longer supported. We recommend the use of the newer Wireshark versions, which support several OpenFlow versions natively and should be considered the standard. These dissectors are only available in Wireshark's Git repository for now (as of version 1.10.7), so make sure you [build from the source](http://www.wireshark.org/develop.html) or [grab a development binary](http://www.wireshark.org/download/automated/).
+
+This code will be kept here for reference purposes, but it will no longer be developed or supported.
+
 ofdissector
 ===========
 

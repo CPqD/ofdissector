@@ -71,8 +71,8 @@
 #define OFP_MAX_TABLE_NAME_LEN 32
 #define OFP_MAX_PORT_NAME_LEN  16
 
-#define OFP_TCP_PORT  6633
-#define OFP_SSL_PORT  6633
+#define OFP_TCP_PORT  6653
+#define OFP_SSL_PORT  6653
 
 #define OFP_ETH_ALEN 6          /* Bytes in an Ethernet address. */
 
